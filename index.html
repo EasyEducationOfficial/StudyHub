@@ -1599,32 +1599,22 @@ view("videoView");
 
 function openWatch(index){
 
-let video=
-currentTopic?.videos?.[index];
+let video = currentTopic?.videos?.[index];
+let id = ytId(video?.url);
 
-let id=
-ytId(video?.url);
+if(!video || !id) return;
 
+$("watchTitle").textContent = video.title;
 
-if(!video||!id)return;
-
-
-$("watchTitle").textContent=
-video.title;
-
-
-/*
-YouTube player remains inside
-the website.
-*/
-
-$("player").src=
-"https://www.youtube.com/embed/"
-+
-encodeURIComponent(id)
-+
-"?rel=0&playsinline=1&controls=1&fs=1";
-
+$("player").src =
+"https://www.youtube-nocookie.com/embed/" +
+encodeURIComponent(id) +
+"?rel=0" +
+"&playsinline=1" +
+"&controls=1" +
+"&fs=1" +
+"&disablekb=1" +
+"&iv_load_policy=3";
 
 view("watchView");
 
@@ -2748,6 +2738,28 @@ error.message
 })();
 
 </script>
+
+<script>
+document.addEventListener("contextmenu", function(e){
+    e.preventDefault();
+});
+
+document.addEventListener("keydown", function(e){
+
+    if(
+        e.key === "F12" ||
+        (e.ctrlKey && e.shiftKey && ["I","J","C"].includes(e.key.toUpperCase())) ||
+        (e.ctrlKey && e.key.toUpperCase() === "U")
+    ){
+        e.preventDefault();
+    }
+
+});
+</script>
+
+</body>
+</html>
+
 
 </body>
 </html>
