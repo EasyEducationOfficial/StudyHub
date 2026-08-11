@@ -253,6 +253,26 @@ button,input{font:inherit}
  border-radius:14px;
  overflow:hidden
 }
+.video-protect{
+ position:relative;
+}
+
+.video-block-share{
+ position:absolute;
+ right:0;
+ bottom:0;
+ width:100px;
+ height:75px;
+ z-index:20;
+ background:transparent;
+}
+
+.video-protect,
+.video-protect iframe{
+ -webkit-user-select:none;
+ user-select:none;
+ -webkit-touch-callout:none;
+}
 
 .player iframe{
  display:block;
@@ -593,13 +613,15 @@ Choose a subject to continue your study.
 
 <div class="card">
 
-<div class="player">
+<div class="player video-protect">
 
 <iframe
 id="player"
 allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
 allowfullscreen>
 </iframe>
+
+<div class="video-block-share"></div>
 
 </div>
 
@@ -1614,7 +1636,8 @@ encodeURIComponent(id) +
 "&controls=1" +
 "&fs=1" +
 "&disablekb=1" +
-"&iv_load_policy=3";
+"&iv_load_policy=3" +
+"&modestbranding=1";
 
 view("watchView");
 
