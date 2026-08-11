@@ -461,11 +461,11 @@ button,input{font:inherit}
 </p>
 
 <div class="tabs">
-<button id="studentTab" class="tab active">
+<button id="studentTab" class="tab active" type="button">
  Student Login
 </button>
 
-<button id="adminTab" class="tab">
+<button id="adminTab" class="tab" type="button">
  Admin
 </button>
 </div>
@@ -487,13 +487,13 @@ button,input{font:inherit}
 <input id="loginPass" type="password" autocomplete="current-password">
 </div>
 
-<button id="loginBtn" class="btn primary full">
+<button id="loginBtn" class="btn primary full" type="button">
  Login
 </button>
 
 <p style="text-align:center;font-size:13px">
 New student?
-<button id="toRegister" class="linkbtn">
+<button id="toRegister" class="linkbtn" type="button">
 Create account
 </button>
 </p>
@@ -519,13 +519,13 @@ Create account
 <input id="regPass" type="password" autocomplete="new-password">
 </div>
 
-<button id="registerBtn" class="btn primary full">
+<button id="registerBtn" class="btn primary full" type="button">
 Create Account
 </button>
 
 <p style="text-align:center;font-size:13px">
 Already registered?
-<button id="toLogin" class="linkbtn">
+<button id="toLogin" class="linkbtn" type="button">
 Login
 </button>
 </p>
@@ -543,7 +543,7 @@ Login
 <input id="adminPass" type="password">
 </div>
 
-<button id="adminLogin" class="btn primary full">
+<button id="adminLogin" class="btn primary full" type="button">
 Open Admin Panel
 </button>
 
@@ -559,7 +559,7 @@ Open Admin Panel
 
 <header class="top">
 
-<button id="menuBtn" class="menu">
+<button id="menuBtn" class="menu" type="button">
 <i></i>
 <i></i>
 <i></i>
@@ -589,17 +589,18 @@ Eazy<b>Education</b>
 
 <button id="closeSide"
 class="btn secondary small"
+type="button"
 style="width:auto;text-align:center">
 ×
 </button>
 
 </div>
 
-<button id="homeBtn">
+<button id="homeBtn" type="button">
 🏠 Home
 </button>
 
-<button id="logoutBtn">
+<button id="logoutBtn" type="button">
 🚪 Logout
 </button>
 
@@ -639,7 +640,7 @@ Choose a subject to continue your study.
 
 <div class="container">
 
-<button id="topicBack" class="back">
+<button id="topicBack" class="back" type="button">
 ← All Subjects
 </button>
 
@@ -658,7 +659,7 @@ Choose a subject to continue your study.
 
 <div class="container">
 
-<button id="videoBack" class="back">
+<button id="videoBack" class="back" type="button">
 ← Topics
 </button>
 
@@ -677,7 +678,7 @@ Choose a subject to continue your study.
 
 <div class="container">
 
-<button id="watchBack" class="back">
+<button id="watchBack" class="back" type="button">
 ← Videos
 </button>
 
@@ -739,6 +740,7 @@ Eazy<b>Education</b> Admin
 
 <button id="adminExit"
 class="btn secondary small"
+type="button"
 style="margin-left:auto">
 Exit
 </button>
@@ -762,7 +764,8 @@ Content is stored online in Supabase.
 <div style="margin:18px 0">
 
 <button id="studentsBtn"
-class="btn secondary">
+class="btn secondary"
+type="button">
 👥 Students
 </button>
 
@@ -807,6 +810,7 @@ style="width:100%;padding:11px;border:1px solid #e5e9f0;border-radius:9px">
 <button
 id="addSubject"
 class="btn primary"
+type="button"
 style="margin-top:8px">
 
 + Add Subject
@@ -843,2061 +847,792 @@ Select a subject.
 
 "use strict";
 
-
 /* =========================
-   SUPABASE
+   HELPERS
 ========================= */
 
-const SUPABASE_URL =
-"https://koigpkmufqorivxeggia.supabase.co";
+const $ = id => document.getElementById(id);
 
-const SUPABASE_ANON_KEY =
-"sb_publishable_d6K-w7SB8KVHuT-CQgSK9A_ryXPqnS4";
+function uid(){
+  return crypto.randomUUID ? crypto.randomUUID() : Date.now() + "_" + Math.random();
+}
 
+function esc(s){
+  return String(s??"").replace(
+    /[&<>"']/g,
+    c=>({
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#039;"
+    }[c])
+  );
+}
 
-const sb =
-supabase.createClient(
-SUPABASE_URL,
-SUPABASE_ANON_KEY
-);
+/* =========================
+   SUPABASE SAFE INITIALIZATION
+========================= */
 
+const SUPABASE_URL = "https://koigpkmufqorivxeggia.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_d6K-w7SB8KVHuT-CQgSK9A_ryXPqnS4";
+
+let sb = null;
+
+function initSupabase(){
+  try {
+    if (typeof supabase !== "undefined" && supabase.createClient) {
+      sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      return true;
+    } else if (window.supabase && window.supabase.createClient) {
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      return true;
+    }
+  } catch(e) {
+    console.error("Supabase Client Error:", e);
+  }
+  return false;
+}
+
+initSupabase();
 
 /* =========================
    GLOBAL DATA
 ========================= */
 
-let site={
- subjects:[]
-};
-
-let currentSubject=null;
-let currentTopic=null;
-let adminSubject=null;
-let adminOpen=false;
-let ytPlayer=null;
-
-
-/* =========================
-   HELPERS
-========================= */
-
-const $ =
-id=>document.getElementById(id);
-
-
-function uid(){
-
-return crypto.randomUUID?
-crypto.randomUUID():
-Date.now()+"_"+Math.random();
-
-}
-
-
-function esc(s){
-
-return String(s??"").replace(
-/[&<>"']/g,
-c=>({
-"&":"&amp;",
-"<":"&lt;",
-">":"&gt;",
-'"':"&quot;",
-"'":"&#039;"
-}[c])
-);
-
-}
-
+let site = { subjects: [] };
+let currentSubject = null;
+let currentTopic = null;
+let adminSubject = null;
+let adminOpen = false;
+let ytPlayer = null;
 
 /* =========================
    YOUTUBE ID
 ========================= */
 
 function ytId(url){
+  try{
+    let raw = url.trim();
+    if(!/^https?:\/\//i.test(raw)){
+      raw = "https://" + raw;
+    }
+    let x = new URL(raw);
+    let host = x.hostname.replace(/^www\./,"").toLowerCase();
+    let path = x.pathname.split("/").filter(Boolean);
 
-try{
-
-let raw = url.trim();
-if(!/^https?:\/\//i.test(raw)){
-    raw = "https://" + raw;
+    if(host === "youtu.be") return path[0] || null;
+    if(host === "youtube.com" || host.endsWith(".youtube.com")){
+      if(path[0] === "shorts" || path[0] === "embed" || path[0] === "live"){
+        return path[1] || null;
+      }
+      return x.searchParams.get("v");
+    }
+  }catch(e){}
+  return null;
 }
-
-let x=new URL(raw);
-
-let host=
-x.hostname
-.replace(/^www\./,"")
-.toLowerCase();
-
-let path=
-x.pathname
-.split("/")
-.filter(Boolean);
-
-
-/* youtu.be */
-
-if(host==="youtu.be"){
-
-return path[0]||null;
-
-}
-
-
-/* youtube.com */
-
-if(
-host==="youtube.com" ||
-host.endsWith(".youtube.com")
-){
-
-if(
-path[0]==="shorts" ||
-path[0]==="embed" ||
-path[0]==="live"
-){
-
-return path[1]||null;
-
-}
-
-return x.searchParams.get("v");
-
-}
-
-}catch(e){}
-
-return null;
-
-}
-
 
 /* =========================
    MESSAGES
 ========================= */
 
-function message(text,success=false){
-
-$("msg").innerHTML=text?
-
-`<div class="msg ${
-success?"success":"error"
-}">
-${esc(text)}
-</div>`:"";
-
+function message(text, success = false){
+  let el = $("msg");
+  if(el){
+    el.innerHTML = text ? `<div class="msg ${success ? "success" : "error"}">${esc(text)}</div>` : "";
+  }
 }
 
-
-function adminMessage(text,success=false){
-
-$("adminMsg").innerHTML=text?
-
-`<div class="msg ${
-success?"success":"error"
-}">
-${esc(text)}
-</div>`:"";
-
+function adminMessage(text, success = false){
+  let el = $("adminMsg");
+  if(el){
+    el.innerHTML = text ? `<div class="msg ${success ? "success" : "error"}">${esc(text)}</div>` : "";
+  }
 }
-
 
 /* =========================
    VIEW
 ========================= */
 
 function view(id){
-
-[
-"homeView",
-"topicView",
-"videoView",
-"watchView"
-].forEach(x=>
-$(x).classList.add("hidden")
-);
-
-$(id).classList.remove("hidden");
-
-scrollTo(0,0);
-
+  ["homeView", "topicView", "videoView", "watchView"].forEach(x => {
+    let el = $(x);
+    if(el) el.classList.add("hidden");
+  });
+  let target = $(id);
+  if(target) target.classList.remove("hidden");
+  scrollTo(0,0);
 }
 
+/* =========================
+   AUTH TAB SWITCHING (ALWAYS WORKING)
+========================= */
+
+$("studentTab").onclick = () => {
+  $("studentTab").classList.add("active");
+  $("adminTab").classList.remove("active");
+  $("studentAuth").classList.remove("hidden");
+  $("adminAuth").classList.add("hidden");
+  message("");
+};
+
+$("adminTab").onclick = () => {
+  $("adminTab").classList.add("active");
+  $("studentTab").classList.remove("active");
+  $("studentAuth").classList.add("hidden");
+  $("adminAuth").classList.remove("hidden");
+  message("");
+};
+
+$("toRegister").onclick = () => {
+  $("loginBox").classList.add("hidden");
+  $("registerBox").classList.remove("hidden");
+  message("");
+};
+
+$("toLogin").onclick = () => {
+  $("registerBox").classList.add("hidden");
+  $("loginBox").classList.remove("hidden");
+  message("");
+};
 
 /* =========================
    NORMALIZE DATABASE DATA
 ========================= */
 
 function normalize(){
-
-if(!Array.isArray(site.subjects))
-site.subjects=[];
-
-
-site.subjects=
-site.subjects.map(s=>({
-
-id:s.id||uid(),
-
-name:String(
-s.name||"Untitled"
-),
-
-icon:String(
-s.icon||"📚"
-),
-
-topics:
-Array.isArray(s.topics)?
-s.topics.map(t=>({
-
-id:t.id||uid(),
-
-name:String(
-t.name||"Chapter"
-),
-
-videos:
-Array.isArray(t.videos)?
-t.videos.map(v=>({
-
-id:v.id||uid(),
-
-title:String(
-v.title||"Video"
-),
-
-url:String(
-v.url||""
-)
-
-})):[ ]
-
-})):[]
-
-}));
-
+  if(!Array.isArray(site.subjects)) site.subjects = [];
+  site.subjects = site.subjects.map(s => ({
+    id: s.id || uid(),
+    name: String(s.name || "Untitled"),
+    icon: String(s.icon || "📚"),
+    topics: Array.isArray(s.topics) ? s.topics.map(t => ({
+      id: t.id || uid(),
+      name: String(t.name || "Chapter"),
+      videos: Array.isArray(t.videos) ? t.videos.map(v => ({
+        id: v.id || uid(),
+        title: String(v.title || "Video"),
+        url: String(v.url || "")
+      })) : []
+    })) : []
+  }));
 }
-
 
 /* =========================
    LOAD SITE
 ========================= */
 
 async function loadSite(){
+  if(!sb) initSupabase();
+  if(!sb) throw new Error("Could not connect to database.");
 
-let r=
-await sb
-.from("site_data")
-.select("data")
-.eq("id",1)
-.maybeSingle();
+  let r = await sb.from("site_data").select("data").eq("id", 1).maybeSingle();
+  if(r.error) throw r.error;
 
-
-if(r.error)
-throw r.error;
-
-
-site=
-r.data?.data||{
-subjects:[]
-};
-
-normalize();
-
+  site = r.data?.data || { subjects: [] };
+  normalize();
 }
 
-
 /* =========================
-   OPEN STUDENT
+   OPEN SCREENS
 ========================= */
 
 function openStudent(user){
-
-$("auth").classList.add("hidden");
-
-$("adminPage").classList.add("hidden");
-
-$("studentApp").classList.remove("hidden");
-
-$("avatar").textContent=
-(user.name||"S")[0].toUpperCase();
-
-renderSubjects();
-
-view("homeView");
-
+  $("auth").classList.add("hidden");
+  $("adminPage").classList.add("hidden");
+  $("studentApp").classList.remove("hidden");
+  $("avatar").textContent = (user.name || "S")[0].toUpperCase();
+  renderSubjects();
+  view("homeView");
 }
-
-
-/* =========================
-   OPEN ADMIN
-========================= */
 
 function openAdmin(){
-
-adminOpen=true;
-
-$("auth").classList.add("hidden");
-
-$("studentApp").classList.add("hidden");
-
-$("adminPage").classList.remove("hidden");
-
-renderAdminSubjects();
-
+  adminOpen = true;
+  $("auth").classList.add("hidden");
+  $("studentApp").classList.add("hidden");
+  $("adminPage").classList.remove("hidden");
+  renderAdminSubjects();
 }
-
-
-/* =========================
-   AUTH
-========================= */
 
 function openAuth(){
-
-adminOpen=false;
-
-$("studentApp").classList.add("hidden");
-
-$("adminPage").classList.add("hidden");
-
-$("auth").classList.remove("hidden");
-
-sessionStorage.removeItem(
-"studyhub_admin"
-);
-
+  adminOpen = false;
+  $("studentApp").classList.add("hidden");
+  $("adminPage").classList.add("hidden");
+  $("auth").classList.remove("hidden");
+  sessionStorage.removeItem("studyhub_admin");
 }
-
-
-/* =========================
-   AUTH TABS
-========================= */
-
-$("studentTab").onclick=()=>{
-
-$("studentTab").classList.add("active");
-
-$("adminTab").classList.remove("active");
-
-$("studentAuth").classList.remove("hidden");
-
-$("adminAuth").classList.add("hidden");
-
-message("");
-
-};
-
-
-$("adminTab").onclick=()=>{
-
-$("adminTab").classList.add("active");
-
-$("studentTab").classList.remove("active");
-
-$("studentAuth").classList.add("hidden");
-
-$("adminAuth").classList.remove("hidden");
-
-message("");
-
-};
-
-
-/* =========================
-   REGISTER / LOGIN SWITCH
-========================= */
-
-$("toRegister").onclick=()=>{
-
-$("loginBox").classList.add("hidden");
-
-$("registerBox").classList.remove("hidden");
-
-message("");
-
-};
-
-
-$("toLogin").onclick=()=>{
-
-$("registerBox").classList.add("hidden");
-
-$("loginBox").classList.remove("hidden");
-
-message("");
-
-};
-
 
 /* =========================
    REGISTER
 ========================= */
 
-$("registerBtn").onclick=
-async()=>{
+$("registerBtn").onclick = async () => {
+  let name = $("regName").value.trim();
+  let loginId = $("regId").value.trim();
+  let password = $("regPass").value;
 
-let name=
-$("regName").value.trim();
+  if(!name || !loginId || !password){
+    return message("Please fill in all fields.");
+  }
+  if(password.length < 6){
+    return message("Password must be at least 6 characters.");
+  }
 
-let loginId=
-$("regId").value.trim();
+  if(!sb) initSupabase();
+  if(!sb) return message("Database not connected. Refresh page.");
 
-let password=
-$("regPass").value;
+  try {
+    let r = await sb.rpc("register_student", {
+      p_name: name,
+      p_login_id: loginId,
+      p_password: password
+    });
 
+    if(r.error) return message(r.error.message);
+    if(!r.data?.success) return message(r.data?.message || "Registration failed.");
 
-if(!name||!loginId||!password){
-
-return message(
-"Please fill in all fields."
-);
-
-}
-
-
-if(password.length<6){
-
-return message(
-"Password must be at least 6 characters."
-);
-
-}
-
-
-let r=
-await sb.rpc(
-"register_student",
-{
-p_name:name,
-p_login_id:loginId,
-p_password:password
-}
-);
-
-
-if(r.error){
-
-return message(
-r.error.message
-);
-
-}
-
-
-if(!r.data?.success){
-
-return message(
-r.data?.message||
-"Registration failed."
-);
-
-}
-
-
-message(
-"Account created. You can login now.",
-true
-);
-
-
-$("registerBox")
-.classList.add("hidden");
-
-$("loginBox")
-.classList.remove("hidden");
-
-$("loginId").value=
-loginId;
-
-$("loginPass").value="";
-
+    message("Account created. You can login now.", true);
+    $("registerBox").classList.add("hidden");
+    $("loginBox").classList.remove("hidden");
+    $("loginId").value = loginId;
+    $("loginPass").value = "";
+  } catch(e) {
+    message("Connection error: " + e.message);
+  }
 };
-
 
 /* =========================
    LOGIN
 ========================= */
 
-$("loginBtn").onclick=
-async()=>{
+$("loginBtn").onclick = async () => {
+  let loginId = $("loginId").value.trim();
+  let password = $("loginPass").value;
 
-let loginId=
-$("loginId").value.trim();
+  if(!loginId || !password){
+    return message("Enter username and password.");
+  }
 
-let password=
-$("loginPass").value;
+  if(!sb) initSupabase();
+  if(!sb) return message("Database not connected. Refresh page.");
 
+  try {
+    let r = await sb.rpc("login_student", {
+      p_login_id: loginId,
+      p_password: password
+    });
 
-if(!loginId||!password){
+    if(r.error) return message(r.error.message);
+    if(!r.data?.success) return message(r.data?.message || "Wrong username or password.");
 
-return message(
-"Enter username and password."
-);
+    let user = {
+      name: r.data.name,
+      login_id: r.data.login_id,
+      id: r.data.id
+    };
 
-}
-
-
-let r=
-await sb.rpc(
-"login_student",
-{
-p_login_id:loginId,
-p_password:password
-}
-);
-
-
-if(r.error){
-
-return message(
-r.error.message
-);
-
-}
-
-
-if(!r.data?.success){
-
-return message(
-r.data?.message||
-"Wrong username or password."
-);
-
-}
-
-
-let user={
-
-name:r.data.name,
-
-login_id:r.data.login_id,
-
-id:r.data.id
-
+    localStorage.setItem("studyhub_user", JSON.stringify(user));
+    openStudent(user);
+  } catch(e) {
+    message("Login error: " + e.message);
+  }
 };
-
-
-localStorage.setItem(
-"studyhub_user",
-JSON.stringify(user)
-);
-
-
-openStudent(user);
-
-};
-
 
 /* =========================
    ADMIN LOGIN
 ========================= */
 
-$("adminLogin").onclick=
-async()=>{
+$("adminLogin").onclick = async () => {
+  let password = $("adminPass").value;
 
-let password=
-$("adminPass").value;
+  if(!password){
+    return message("Enter admin password.");
+  }
 
+  if(!sb) initSupabase();
+  if(!sb) return message("Database not connected. Refresh page.");
 
-if(!password){
+  try {
+    let r = await sb.rpc("admin_login", {
+      p_password: password
+    });
 
-return message(
-"Enter admin password."
-);
+    if(r.error) return message(r.error.message);
+    if(!r.data?.success) return message("Wrong admin password.");
 
-}
-
-
-let r=
-await sb.rpc(
-"admin_login",
-{
-p_password:password
-}
-);
-
-
-if(r.error){
-
-return message(
-r.error.message
-);
-
-}
-
-
-if(!r.data?.success){
-
-return message(
-"Wrong admin password."
-);
-
-}
-
-
-sessionStorage.setItem(
-"studyhub_admin",
-"1"
-);
-
-
-openAdmin();
-
+    sessionStorage.setItem("studyhub_admin", "1");
+    openAdmin();
+  } catch(e) {
+    message("Admin login error: " + e.message);
+  }
 };
-
 
 /* =========================
-   LOGOUT
+   LOGOUT / EXIT
 ========================= */
 
-$("adminExit").onclick=
-openAuth;
+$("adminExit").onclick = openAuth;
 
-
-$("logoutBtn").onclick=()=>{
-
-localStorage.removeItem(
-"studyhub_user"
-);
-
-if(ytPlayer && typeof ytPlayer.destroy === 'function'){
+$("logoutBtn").onclick = () => {
+  localStorage.removeItem("studyhub_user");
+  if(ytPlayer && typeof ytPlayer.destroy === 'function'){
     try{ ytPlayer.destroy(); }catch(e){}
     ytPlayer = null;
-}
-
-$("player").src="";
-
-openAuth();
-
+  }
+  $("player").src = "";
+  openAuth();
 };
-
 
 /* =========================
    SIDE MENU
 ========================= */
 
-$("menuBtn").onclick=()=>{
-
-$("side").classList.add("open");
-
-$("overlay").classList.add("show");
-
+$("menuBtn").onclick = () => {
+  $("side").classList.add("open");
+  $("overlay").classList.add("show");
 };
 
-
-$("closeSide").onclick=
-closeSide;
-
-$("overlay").onclick=
-closeSide;
-
+$("closeSide").onclick = closeSide;
+$("overlay").onclick = closeSide;
 
 function closeSide(){
-
-$("side").classList.remove("open");
-
-$("overlay").classList.remove("show");
-
+  $("side").classList.remove("open");
+  $("overlay").classList.remove("show");
 }
 
-
-$("homeBtn").onclick=()=>{
-
-closeSide();
-
-renderSubjects();
-
-view("homeView");
-
+$("homeBtn").onclick = () => {
+  closeSide();
+  renderSubjects();
+  view("homeView");
 };
-
 
 /* =========================
    STUDENT SUBJECTS
 ========================= */
 
 function renderSubjects(){
+  $("subjects").innerHTML = site.subjects.map(s => `
+    <div class="card click" data-id="${esc(s.id)}">
+      <div style="font-size:34px">${esc(s.icon)}</div>
+      <h2>${esc(s.name)}</h2>
+      <p class="muted">${s.topics.length} chapter(s)</p>
+    </div>
+  `).join("") || `<div class="empty" style="grid-column:1/-1">No subjects yet.</div>`;
 
-$("subjects").innerHTML=
-site.subjects.map(s=>`
-
-<div
-class="card click"
-data-id="${esc(s.id)}"
->
-
-<div style="font-size:34px">
-${esc(s.icon)}
-</div>
-
-<h2>
-${esc(s.name)}
-</h2>
-
-<p class="muted">
-${s.topics.length} chapter(s)
-</p>
-
-</div>
-
-`).join("")
-
-||
-
-`<div class="empty"
-style="grid-column:1/-1">
-No subjects yet.
-</div>`;
-
-
-$("subjects")
-.querySelectorAll("[data-id]")
-.forEach(card=>{
-
-card.onclick=()=>
-openTopics(card.dataset.id);
-
-});
-
+  $("subjects").querySelectorAll("[data-id]").forEach(card => {
+    card.onclick = () => openTopics(card.dataset.id);
+  });
 }
-
-
-/* =========================
-   TOPICS
-========================= */
 
 function openTopics(id){
+  currentSubject = site.subjects.find(x => x.id === id);
+  if(!currentSubject) return;
 
-currentSubject=
-site.subjects.find(
-x=>x.id===id
-);
+  $("topicTitle").textContent = currentSubject.name;
+  $("topics").innerHTML = currentSubject.topics.map(t => `
+    <div class="card click" data-id="${esc(t.id)}">
+      <h3>${esc(t.name)}</h3>
+      <p class="muted">${t.videos.length} video(s)</p>
+    </div>
+  `).join("") || `<div class="empty" style="grid-column:1/-1">No chapters yet.</div>`;
 
-if(!currentSubject)return;
+  $("topics").querySelectorAll("[data-id]").forEach(card => {
+    card.onclick = () => openVideos(card.dataset.id);
+  });
 
-
-$("topicTitle").textContent=
-currentSubject.name;
-
-
-$("topics").innerHTML=
-currentSubject.topics.map(t=>`
-
-<div
-class="card click"
-data-id="${esc(t.id)}"
->
-
-<h3>
-${esc(t.name)}
-</h3>
-
-<p class="muted">
-${t.videos.length} video(s)
-</p>
-
-</div>
-
-`).join("")
-
-||
-
-`<div class="empty"
-style="grid-column:1/-1">
-No chapters yet.
-</div>`;
-
-
-$("topics")
-.querySelectorAll("[data-id]")
-.forEach(card=>{
-
-card.onclick=()=>
-openVideos(card.dataset.id);
-
-});
-
-
-view("topicView");
-
+  view("topicView");
 }
-
-
-/* =========================
-   VIDEOS
-========================= */
 
 function openVideos(id){
+  currentTopic = currentSubject.topics.find(x => x.id === id);
+  if(!currentTopic) return;
 
-currentTopic=
-currentSubject.topics.find(
-x=>x.id===id
-);
+  $("videoTitle").textContent = currentTopic.name;
+  $("videos").innerHTML = currentTopic.videos.map((v, i) => {
+    let y = ytId(v.url);
+    return `
+      <article class="card">
+        <div class="thumb">
+          ${y ? `<img src="https://img.youtube.com/vi/${encodeURIComponent(y)}/hqdefault.jpg" alt="">` : ""}
+        </div>
+        <h3>${esc(v.title)}</h3>
+        <p class="muted">${esc(currentSubject.name)} • ${esc(currentTopic.name)}</p>
+        <button class="btn primary full watch" data-i="${i}" type="button">▶ Watch Video</button>
+      </article>
+    `;
+  }).join("") || `<div class="empty" style="grid-column:1/-1">No videos yet.</div>`;
 
-if(!currentTopic)return;
+  $("videos").querySelectorAll("[data-i]").forEach(button => {
+    button.onclick = () => openWatch(Number(button.dataset.i));
+  });
 
-
-$("videoTitle").textContent=
-currentTopic.name;
-
-
-$("videos").innerHTML=
-currentTopic.videos.map(
-(v,i)=>{
-
-let y=ytId(v.url);
-
-return`
-
-<article class="card">
-
-<div class="thumb">
-
-${
-y?
-`<img
-src="https://img.youtube.com/vi/${encodeURIComponent(y)}/hqdefault.jpg"
-alt=""
->`
-:""
+  view("videoView");
 }
-
-</div>
-
-<h3>
-${esc(v.title)}
-</h3>
-
-<p class="muted">
-${esc(currentSubject.name)}
-•
-${esc(currentTopic.name)}
-</p>
-
-<button
-class="btn primary full watch"
-data-i="${i}"
->
-▶ Watch Video
-</button>
-
-</article>
-
-`;
-
-}
-).join("")
-
-||
-
-`<div class="empty"
-style="grid-column:1/-1">
-No videos yet.
-</div>`;
-
-
-$("videos")
-.querySelectorAll("[data-i]")
-.forEach(button=>{
-
-button.onclick=()=>
-openWatch(
-Number(button.dataset.i)
-);
-
-});
-
-
-view("videoView");
-
-}
-
-
-/* =========================
-   WATCH VIDEO
-========================= */
 
 function openWatch(index){
+  let video = currentTopic?.videos?.[index];
+  let id = ytId(video?.url);
 
-    let video = currentTopic?.videos?.[index];
-    let id = ytId(video?.url);
+  if(!video || !id) return;
 
-    if(!video || !id) return;
+  $("watchTitle").textContent = video.title;
 
-    $("watchTitle").textContent = video.title;
-
-    if(ytPlayer && typeof ytPlayer.destroy === 'function'){
-        try{ ytPlayer.destroy(); }catch(e){}
-        ytPlayer = null;
-    }
-
-    $("player").src =
-        "https://www.youtube-nocookie.com/embed/" +
-        encodeURIComponent(id) +
-        "?enablejsapi=1" +
-        "&rel=0" +
-        "&playsinline=1" +
-        "&controls=0" +
-        "&disablekb=1" +
-        "&modestbranding=1";
-
-    view("watchView");
-
-    setTimeout(() => {
-
-        if(typeof YT !== "undefined" && YT.Player){
-
-            ytPlayer = new YT.Player("player", {
-                events:{
-                    onReady:function(){
-                        if(typeof updatePlayButton === "function") updatePlayButton();
-                    },
-                    onStateChange:function(){
-                        if(typeof updatePlayButton === "function") updatePlayButton();
-                    }
-                }
-            });
-
-        }
-
-    },300);
-}
-
-
-/* =========================
-   BACK BUTTONS
-========================= */
-
-$("topicBack").onclick=()=>{
-
-view("homeView");
-
-};
-
-
-$("videoBack").onclick=()=>{
-
-view("topicView");
-
-};
-
-
-$("watchBack").onclick=()=>{
-
-if(ytPlayer && typeof ytPlayer.destroy === 'function'){
+  if(ytPlayer && typeof ytPlayer.destroy === 'function'){
     try{ ytPlayer.destroy(); }catch(e){}
     ytPlayer = null;
+  }
+
+  $("player").src =
+    "https://www.youtube-nocookie.com/embed/" +
+    encodeURIComponent(id) +
+    "?enablejsapi=1&rel=0&playsinline=1&controls=0&disablekb=1&modestbranding=1";
+
+  view("watchView");
+
+  setTimeout(() => {
+    if(typeof YT !== "undefined" && YT.Player){
+      ytPlayer = new YT.Player("player", {
+        events: {
+          onReady: function(){ if(typeof updatePlayButton === "function") updatePlayButton(); },
+          onStateChange: function(){ if(typeof updatePlayButton === "function") updatePlayButton(); }
+        }
+      });
+    }
+  }, 300);
 }
 
-$("player").src="";
+$("topicBack").onclick = () => view("homeView");
+$("videoBack").onclick = () => view("topicView");
 
-view("videoView");
-
+$("watchBack").onclick = () => {
+  if(ytPlayer && typeof ytPlayer.destroy === 'function'){
+    try{ ytPlayer.destroy(); }catch(e){}
+    ytPlayer = null;
+  }
+  $("player").src = "";
+  view("videoView");
 };
 
-
 /* =========================
-   ADMIN SAVE
+   ADMIN FUNCTIONS
 ========================= */
 
 async function saveSite(){
-
-normalize();
-
-
-let r=
-await sb.rpc(
-"admin_save_site",
-{
-p_data:site
+  normalize();
+  if(!sb) initSupabase();
+  let r = await sb.rpc("admin_save_site", { p_data: site });
+  if(r.error) throw r.error;
+  if(!r.data?.success) throw new Error(r.data?.message || "Could not save.");
 }
-);
-
-
-if(r.error)
-throw r.error;
-
-
-if(!r.data?.success){
-
-throw new Error(
-r.data?.message||
-"Could not save."
-);
-
-}
-
-}
-
-
-/* =========================
-   ADMIN SUBJECT LIST
-========================= */
 
 function renderAdminSubjects(){
+  $("adminSubjects").innerHTML = site.subjects.map(s => `
+    <div class="item">
+      <span>${esc(s.icon)} ${esc(s.name)}</span>
+      <div class="actions">
+        <button class="btn secondary small" data-manage="${esc(s.id)}" type="button">Manage</button>
+        <button class="btn danger small" data-remove="${esc(s.id)}" type="button">×</button>
+      </div>
+    </div>
+  `).join("") || `<div class="empty">No subjects.</div>`;
 
-$("adminSubjects").innerHTML=
-site.subjects.map(s=>`
-
-<div class="item">
-
-<span>
-${esc(s.icon)}
-${esc(s.name)}
-</span>
-
-<div class="actions">
-
-<button
-class="btn secondary small"
-data-manage="${esc(s.id)}"
->
-Manage
-</button>
-
-<button
-class="btn danger small"
-data-remove="${esc(s.id)}"
->
-×
-</button>
-
-</div>
-
-</div>
-
-`).join("")
-
-||
-
-`<div class="empty">
-No subjects.
-</div>`;
-
-
-$("adminSubjects")
-.querySelectorAll("[data-manage]")
-.forEach(button=>{
-
-button.onclick=()=>
-manageSubject(
-button.dataset.manage
-);
-
-});
-
-
-$("adminSubjects")
-.querySelectorAll("[data-remove]")
-.forEach(button=>{
-
-button.onclick=()=>
-removeSubject(
-button.dataset.remove
-);
-
-});
-
+  $("adminSubjects").querySelectorAll("[data-manage]").forEach(b => {
+    b.onclick = () => manageSubject(b.dataset.manage);
+  });
+  $("adminSubjects").querySelectorAll("[data-remove]").forEach(b => {
+    b.onclick = () => removeSubject(b.dataset.remove);
+  });
 }
 
+$("addSubject").onclick = async () => {
+  let name = $("newSubject").value.trim();
+  if(!name) return;
 
-/* =========================
-   ADD SUBJECT
-========================= */
+  site.subjects.push({ id: uid(), name: name, icon: "📚", topics: [] });
 
-$("addSubject").onclick=
-async()=>{
-
-let name=
-$("newSubject").value.trim();
-
-
-if(!name)return;
-
-
-site.subjects.push({
-
-id:uid(),
-
-name:name,
-
-icon:"📚",
-
-topics:[]
-
-});
-
-
-try{
-
-await saveSite();
-
-$("newSubject").value="";
-
-renderAdminSubjects();
-
-adminMessage(
-"Subject added.",
-true
-);
-
-}catch(e){
-
-adminMessage(
-e.message
-);
-
-}
-
+  try {
+    await saveSite();
+    $("newSubject").value = "";
+    renderAdminSubjects();
+    adminMessage("Subject added.", true);
+  } catch(e) {
+    adminMessage(e.message);
+  }
 };
-
-
-/* =========================
-   MANAGE SUBJECT
-========================= */
 
 function manageSubject(id){
-
-adminSubject=
-site.subjects.find(
-x=>x.id===id
-);
-
-if(!adminSubject)return;
-
-
-$("editorTitle").textContent=
-"Manage: "+adminSubject.name;
-
-
-renderEditor();
-
+  adminSubject = site.subjects.find(x => x.id === id);
+  if(!adminSubject) return;
+  $("editorTitle").textContent = "Manage: " + adminSubject.name;
+  renderEditor();
 }
-
-
-/* =========================
-   DELETE SUBJECT
-========================= */
 
 async function removeSubject(id){
+  if(!confirm("Delete subject and all chapters/videos?")) return;
+  site.subjects = site.subjects.filter(x => x.id !== id);
 
-if(!confirm(
-"Delete subject and all chapters/videos?"
-))return;
-
-
-site.subjects=
-site.subjects.filter(
-x=>x.id!==id
-);
-
-
-try{
-
-await saveSite();
-
-adminSubject=null;
-
-renderAdminSubjects();
-
-$("editorTitle").textContent=
-"Select a subject";
-
-$("editor").innerHTML=
-`<div class="empty">
-Select a subject.
-</div>`;
-
-}catch(e){
-
-adminMessage(e.message);
-
+  try {
+    await saveSite();
+    adminSubject = null;
+    renderAdminSubjects();
+    $("editorTitle").textContent = "Select a subject";
+    $("editor").innerHTML = `<div class="empty">Select a subject.</div>`;
+  } catch(e) {
+    adminMessage(e.message);
+  }
 }
-
-}
-
-
-/* =========================
-   SUBJECT EDITOR
-========================= */
 
 function renderEditor(){
+  let s = adminSubject;
+  $("editor").className = "";
+  $("editor").innerHTML = `
+    <div class="field">
+      <label>Subject name</label>
+      <input id="subName" value="${esc(s.name)}">
+    </div>
+    <div class="field">
+      <label>Icon</label>
+      <input id="subIcon" value="${esc(s.icon)}">
+    </div>
+    <button class="btn primary" id="saveSub" type="button">Save Subject</button>
+    <hr>
+    <h3>Chapters</h3>
+    <div class="list">
+      ${s.topics.map(t => `
+        <div class="item">
+          <span>${esc(t.name)} (${t.videos.length})</span>
+          <div class="actions">
+            <button class="btn secondary small" data-topic="${esc(t.id)}" type="button">Manage</button>
+            <button class="btn danger small" data-delete-topic="${esc(t.id)}" type="button">×</button>
+          </div>
+        </div>
+      `).join("") || `<div class="empty">No chapters.</div>`}
+    </div>
+    <hr>
+    <input id="newTopic" placeholder="Chapter name" style="width:100%;padding:11px;border:1px solid #e5e9f0;border-radius:9px">
+    <button class="btn primary" style="margin-top:8px" id="addTopic" type="button">+ Add Chapter</button>
+    <div id="topicEditor" style="margin-top:18px"></div>
+  `;
 
-let s=adminSubject;
+  $("saveSub").onclick = saveSubjectInfo;
+  $("addTopic").onclick = addTopic;
 
-
-$("editor").className="";
-
-
-$("editor").innerHTML=`
-
-<div class="field">
-
-<label>
-Subject name
-</label>
-
-<input
-id="subName"
-value="${esc(s.name)}"
->
-
-</div>
-
-
-<div class="field">
-
-<label>
-Icon
-</label>
-
-<input
-id="subIcon"
-value="${esc(s.icon)}"
->
-
-</div>
-
-
-<button
-class="btn primary"
-id="saveSub"
->
-Save Subject
-</button>
-
-
-<hr>
-
-
-<h3>
-Chapters
-</h3>
-
-
-<div class="list">
-
-${
-s.topics.map(t=>`
-
-<div class="item">
-
-<span>
-${esc(t.name)}
-(${t.videos.length})
-</span>
-
-<div class="actions">
-
-<button
-class="btn secondary small"
-data-topic="${esc(t.id)}"
->
-Manage
-</button>
-
-<button
-class="btn danger small"
-data-delete-topic="${esc(t.id)}"
->
-×
-</button>
-
-</div>
-
-</div>
-
-`).join("")
-
-||
-
-`<div class="empty">
-No chapters.
-</div>`
+  $("editor").querySelectorAll("[data-topic]").forEach(b => {
+    b.onclick = () => manageTopic(b.dataset.topic);
+  });
+  $("editor").querySelectorAll("[data-delete-topic]").forEach(b => {
+    b.onclick = () => removeTopic(b.dataset.deleteTopic);
+  });
 }
-
-</div>
-
-
-<hr>
-
-
-<input
-id="newTopic"
-placeholder="Chapter name"
-style="width:100%;padding:11px;border:1px solid #e5e9f0;border-radius:9px"
->
-
-
-<button
-class="btn primary"
-style="margin-top:8px"
-id="addTopic"
->
-+ Add Chapter
-</button>
-
-
-<div
-id="topicEditor"
-style="margin-top:18px"
-></div>
-
-`;
-
-
-$("saveSub").onclick=
-saveSubjectInfo;
-
-
-$("addTopic").onclick=
-addTopic;
-
-
-$("editor")
-.querySelectorAll("[data-topic]")
-.forEach(button=>{
-
-button.onclick=()=>
-manageTopic(
-button.dataset.topic
-);
-
-});
-
-
-$("editor")
-.querySelectorAll("[data-delete-topic]")
-.forEach(button=>{
-
-button.onclick=()=>
-removeTopic(
-button.dataset.deleteTopic
-);
-
-});
-
-}
-
-
-/* =========================
-   SAVE SUBJECT
-========================= */
 
 async function saveSubjectInfo(){
-
-adminSubject.name=
-$("subName").value.trim()
-||
-adminSubject.name;
-
-
-adminSubject.icon=
-$("subIcon").value.trim()
-||
-"📚";
-
-
-try{
-
-await saveSite();
-
-renderAdminSubjects();
-
-renderEditor();
-
-adminMessage(
-"Subject saved.",
-true
-);
-
-}catch(e){
-
-adminMessage(
-e.message
-);
-
+  adminSubject.name = $("subName").value.trim() || adminSubject.name;
+  adminSubject.icon = $("subIcon").value.trim() || "📚";
+  try {
+    await saveSite();
+    renderAdminSubjects();
+    renderEditor();
+    adminMessage("Subject saved.", true);
+  } catch(e) {
+    adminMessage(e.message);
+  }
 }
-
-}
-
-
-/* =========================
-   ADD CHAPTER
-========================= */
 
 async function addTopic(){
-
-let name=
-$("newTopic").value.trim();
-
-
-if(!name)return;
-
-
-adminSubject.topics.push({
-
-id:uid(),
-
-name:name,
-
-videos:[]
-
-});
-
-
-try{
-
-await saveSite();
-
-renderEditor();
-
-adminMessage(
-"Chapter added.",
-true
-);
-
-}catch(e){
-
-adminMessage(
-e.message
-);
-
+  let name = $("newTopic").value.trim();
+  if(!name) return;
+  adminSubject.topics.push({ id: uid(), name: name, videos: [] });
+  try {
+    await saveSite();
+    renderEditor();
+    adminMessage("Chapter added.", true);
+  } catch(e) {
+    adminMessage(e.message);
+  }
 }
-
-}
-
-
-/* =========================
-   DELETE CHAPTER
-========================= */
 
 async function removeTopic(id){
-
-if(!confirm(
-"Delete chapter and videos?"
-))return;
-
-
-adminSubject.topics=
-adminSubject.topics.filter(
-x=>x.id!==id
-);
-
-
-try{
-
-await saveSite();
-
-renderEditor();
-
-}catch(e){
-
-adminMessage(
-e.message
-);
-
+  if(!confirm("Delete chapter and videos?")) return;
+  adminSubject.topics = adminSubject.topics.filter(x => x.id !== id);
+  try {
+    await saveSite();
+    renderEditor();
+  } catch(e) {
+    adminMessage(e.message);
+  }
 }
-
-}
-
-
-/* =========================
-   MANAGE CHAPTER
-========================= */
 
 function manageTopic(id){
+  let topic = adminSubject.topics.find(x => x.id === id);
+  if(!topic) return;
 
-let topic=
-adminSubject.topics.find(
-x=>x.id===id
-);
+  $("topicEditor").innerHTML = `
+    <div class="card">
+      <h3>${esc(topic.name)}</h3>
+      <div class="field">
+        <label>Chapter name</label>
+        <input id="topicName" value="${esc(topic.name)}">
+      </div>
+      <button class="btn secondary small" id="saveTopic" type="button">Save Name</button>
+      <hr>
+      <h4>Videos</h4>
+      <div class="list">
+        ${topic.videos.map((v, i) => `
+          <div class="item">
+            <span>${esc(v.title)}</span>
+            <button class="btn danger small" data-video-delete="${i}" type="button">Delete</button>
+          </div>
+        `).join("") || `<div class="empty">No videos.</div>`}
+      </div>
+      <hr>
+      <h4>Add YouTube Video</h4>
+      <div class="field">
+        <label>Video title</label>
+        <input id="videoName" placeholder="Example: Narration Part 1">
+      </div>
+      <div class="field">
+        <label>YouTube URL</label>
+        <input id="videoUrl" placeholder="https://youtube.com/watch?v=...">
+      </div>
+      <button class="btn primary" id="addVideo" type="button">+ Add Video</button>
+    </div>
+  `;
 
-
-if(!topic)return;
-
-
-$("topicEditor").innerHTML=`
-
-<div class="card">
-
-<h3>
-${esc(topic.name)}
-</h3>
-
-
-<div class="field">
-
-<label>
-Chapter name
-</label>
-
-<input
-id="topicName"
-value="${esc(topic.name)}"
->
-
-</div>
-
-
-<button
-class="btn secondary small"
-id="saveTopic"
->
-Save Name
-</button>
-
-
-<hr>
-
-
-<h4>
-Videos
-</h4>
-
-
-<div class="list">
-
-${
-topic.videos.map(
-(v,i)=>`
-
-<div class="item">
-
-<span>
-${esc(v.title)}
-</span>
-
-<button
-class="btn danger small"
-data-video-delete="${i}"
->
-Delete
-</button>
-
-</div>
-
-`).join("")
-
-||
-
-`<div class="empty">
-No videos.
-</div>`
+  $("saveTopic").onclick = () => saveTopic(id);
+  $("addVideo").onclick = () => addVideo(id);
+  $("topicEditor").querySelectorAll("[data-video-delete]").forEach(b => {
+    b.onclick = () => removeVideo(id, Number(b.dataset.videoDelete));
+  });
 }
-
-</div>
-
-
-<hr>
-
-
-<h4>
-Add YouTube Video
-</h4>
-
-
-<div class="field">
-
-<label>
-Video title
-</label>
-
-<input
-id="videoName"
-placeholder="Example: Narration Part 1"
->
-
-</div>
-
-
-<div class="field">
-
-<label>
-YouTube URL
-</label>
-
-<input
-id="videoUrl"
-placeholder="https://youtube.com/watch?v=..."
->
-
-</div>
-
-
-<button
-class="btn primary"
-id="addVideo"
->
-+ Add Video
-</button>
-
-
-</div>
-
-`;
-
-
-$("saveTopic").onclick=
-()=>saveTopic(id);
-
-
-$("addVideo").onclick=
-()=>addVideo(id);
-
-
-$("topicEditor")
-.querySelectorAll("[data-video-delete]")
-.forEach(button=>{
-
-button.onclick=()=>
-removeVideo(
-id,
-Number(
-button.dataset.videoDelete
-)
-);
-
-});
-
-}
-
-
-/* =========================
-   SAVE CHAPTER
-========================= */
 
 async function saveTopic(id){
-
-let topic=
-adminSubject.topics.find(
-x=>x.id===id
-);
-
-
-let name=
-$("topicName").value.trim();
-
-
-if(name)
-topic.name=name;
-
-
-try{
-
-await saveSite();
-
-renderEditor();
-
-manageTopic(id);
-
-}catch(e){
-
-adminMessage(
-e.message
-);
-
+  let topic = adminSubject.topics.find(x => x.id === id);
+  let name = $("topicName").value.trim();
+  if(name) topic.name = name;
+  try {
+    await saveSite();
+    renderEditor();
+    manageTopic(id);
+  } catch(e) {
+    adminMessage(e.message);
+  }
 }
-
-}
-
-
-/* =========================
-   ADD VIDEO
-========================= */
 
 async function addVideo(id){
+  let topic = adminSubject.topics.find(x => x.id === id);
+  let title = $("videoName").value.trim();
+  let url = $("videoUrl").value.trim();
 
-let topic=
-adminSubject.topics.find(
-x=>x.id===id
-);
+  if(!title || !ytId(url)){
+    alert("Enter a video title and valid YouTube URL.");
+    return;
+  }
 
-
-let title=
-$("videoName").value.trim();
-
-
-let url=
-$("videoUrl").value.trim();
-
-
-if(!title||!ytId(url)){
-
-alert(
-"Enter a video title and valid YouTube URL."
-);
-
-return;
-
+  topic.videos.push({ id: uid(), title: title, url: url });
+  try {
+    await saveSite();
+    renderEditor();
+    manageTopic(id);
+    adminMessage("Video added.", true);
+  } catch(e) {
+    adminMessage(e.message);
+  }
 }
 
+async function removeVideo(id, index){
+  let topic = adminSubject.topics.find(x => x.id === id);
+  if(!topic) return;
+  if(!confirm("Delete this video?")) return;
 
-topic.videos.push({
-
-id:uid(),
-
-title:title,
-
-url:url
-
-});
-
-
-try{
-
-await saveSite();
-
-renderEditor();
-
-manageTopic(id);
-
-adminMessage(
-"Video added.",
-true
-);
-
-}catch(e){
-
-adminMessage(
-e.message
-);
-
+  topic.videos.splice(index, 1);
+  try {
+    await saveSite();
+    renderEditor();
+    manageTopic(id);
+  } catch(e) {
+    adminMessage(e.message);
+  }
 }
 
-}
+$("studentsBtn").onclick = async () => {
+  let password = prompt("Enter admin password:");
+  if(!password) return;
 
+  if(!sb) initSupabase();
+  let r = await sb.rpc("admin_list_students", { p_password: password });
+  if(r.error) return adminMessage(r.error.message);
+  if(!r.data?.success) return adminMessage("Wrong admin password.");
 
-/* =========================
-   DELETE VIDEO
-========================= */
+  $("studentsPanel").classList.remove("hidden");
+  let students = Array.isArray(r.data.students) ? r.data.students : [];
 
-async function removeVideo(id,index){
+  $("students").innerHTML = students.map(s => `
+    <div class="item" style="display:block">
+      <div style="margin-bottom:10px">
+        <b style="font-size:16px">${esc(s.name)}</b>
+        <div class="muted">Username / Number: ${esc(s.login_id)}</div>
+        <div class="muted">User ID: ${esc(s.id)}</div>
+        <div class="muted">Created: ${s.created_at ? new Date(s.created_at).toLocaleString() : "Unknown"}</div>
+      </div>
+      <button class="btn secondary small" data-change="${esc(s.id)}" data-login="${esc(s.login_id)}" type="button">🔑 Change Password</button>
+    </div>
+  `).join("") || `<div class="empty">No students registered yet.</div>`;
 
-let topic=
-adminSubject.topics.find(
-x=>x.id===id
-);
-
-
-if(!topic)return;
-
-
-if(!confirm(
-"Delete this video?"
-))return;
-
-
-topic.videos.splice(
-index,
-1
-);
-
-
-try{
-
-await saveSite();
-
-renderEditor();
-
-manageTopic(id);
-
-}catch(e){
-
-adminMessage(
-e.message
-);
-
-}
-
-}
-
-
-/* =========================
-   STUDENT LIST
-========================= */
-
-$("studentsBtn").onclick=
-async()=>{
-
-let password=
-prompt(
-"Enter admin password:"
-);
-
-
-if(!password)return;
-
-
-let r=
-await sb.rpc(
-"admin_list_students",
-{
-p_password:password
-}
-);
-
-
-if(r.error){
-
-return adminMessage(
-r.error.message
-);
-
-}
-
-
-if(!r.data?.success){
-
-return adminMessage(
-"Wrong admin password."
-);
-
-}
-
-
-$("studentsPanel")
-.classList.remove("hidden");
-
-
-let students=
-Array.isArray(
-r.data.students
-)?
-r.data.students:
-[];
-
-
-$("students").innerHTML=
-students.map(s=>`
-
-<div class="item" style="display:block">
-
-<div style="margin-bottom:10px">
-
-<b style="font-size:16px">
-${esc(s.name)}
-</b>
-
-<div class="muted">
-Username / Number: ${esc(s.login_id)}
-</div>
-
-<div class="muted">
-User ID: ${esc(s.id)}
-</div>
-
-<div class="muted">
-Created: ${
-s.created_at
-?
-new Date(s.created_at).toLocaleString()
-:
-"Unknown"
-}
-</div>
-
-</div>
-
-<button
-class="btn secondary small"
-data-change="${esc(s.id)}"
-data-login="${esc(s.login_id)}"
->
-🔑 Change Password
-</button>
-
-</div>
-
-`).join("")
-
-||
-
-`<div class="empty">
-No students registered yet.
-</div>`;
-
-
-$("students")
-.querySelectorAll("[data-change]")
-.forEach(button=>{
-
-button.onclick=()=>
-changeStudentPassword(
-button.dataset.change,
-button.dataset.login
-);
-
-});
-
+  $("students").querySelectorAll("[data-change]").forEach(b => {
+    b.onclick = () => changeStudentPassword(b.dataset.change, b.dataset.login);
+  });
 };
 
+async function changeStudentPassword(id, login){
+  let newPassword = prompt("New password for " + login);
+  if(!newPassword) return;
+  if(newPassword.length < 6){ alert("Minimum 6 characters."); return; }
 
-/* =========================
-   CHANGE STUDENT PASSWORD
-========================= */
+  let adminPassword = prompt("Admin password");
+  if(!adminPassword) return;
 
-async function changeStudentPassword(
-id,
-login
-){
+  let r = await sb.rpc("admin_change_password", {
+    p_admin_password: adminPassword,
+    p_student_id: id,
+    p_new_password: newPassword
+  });
 
-let newPassword=
-prompt(
-"New password for "+login
-);
+  if(r.error){ alert(r.error.message); return; }
+  if(!r.data?.success){ alert(r.data?.message || "Could not change password."); return; }
 
-
-if(!newPassword)return;
-
-
-if(newPassword.length<6){
-
-alert(
-"Minimum 6 characters."
-);
-
-return;
-
+  alert("Password changed successfully.");
 }
-
-
-let adminPassword=
-prompt(
-"Admin password"
-);
-
-
-if(!adminPassword)return;
-
-
-let r=
-await sb.rpc(
-"admin_change_password",
-{
-p_admin_password:adminPassword,
-p_student_id:id,
-p_new_password:newPassword
-}
-);
-
-
-if(r.error){
-
-alert(
-r.error.message
-);
-
-return;
-
-}
-
-
-if(!r.data?.success){
-
-alert(
-r.data?.message||
-"Could not change password."
-);
-
-return;
-
-}
-
-
-alert(
-"Password changed successfully."
-);
-
-}
-
-
-/* =========================
-   REALTIME
-========================= */
-
-sb.channel("studyhub-live")
-
-.on(
-"postgres_changes",
-{
-event:"UPDATE",
-schema:"public",
-table:"site_data",
-filter:"id=eq.1"
-},
-payload=>{
-
-site=
-payload.new?.data||
-{
-subjects:[]
-};
-
-normalize();
-
-
-if(
-!$("studentApp")
-.classList.contains("hidden")
-){
-
-renderSubjects();
-
-}
-
-
-if(adminOpen){
-
-renderAdminSubjects();
-
-}
-
-}
-)
-
-.subscribe();
-
 
 /* =========================
    START
 ========================= */
 
-(async()=>{
+(async () => {
+  try {
+    if(initSupabase()){
+      await loadSite();
 
-try{
+      if(sb){
+        sb.channel("studyhub-live").on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "site_data", filter: "id=eq.1" },
+          payload => {
+            site = payload.new?.data || { subjects: [] };
+            normalize();
+            if(!$("studentApp").classList.contains("hidden")) renderSubjects();
+            if(adminOpen) renderAdminSubjects();
+          }
+        ).subscribe();
+      }
+    }
 
-await loadSite();
+    let user = JSON.parse(localStorage.getItem("studyhub_user") || "null");
+    if(user?.id) openStudent(user);
 
-
-let user=
-JSON.parse(
-localStorage.getItem(
-"studyhub_user"
-)||
-"null"
-);
-
-
-if(user?.id){
-
-openStudent(user);
-
-}
-
-}catch(error){
-
-console.error(error);
-
-message(
-"Could not connect to Supabase: "+
-error.message
-);
-
-}
-
+  } catch(error) {
+    console.error(error);
+    message("Notice: " + error.message);
+  }
 })();
 
 </script>
@@ -2908,7 +1643,6 @@ document.addEventListener("contextmenu", function(e){
 });
 
 document.addEventListener("keydown", function(e){
-
     if(
         e.key === "F12" ||
         (e.ctrlKey && e.shiftKey && ["I","J","C"].includes(e.key.toUpperCase())) ||
@@ -2916,152 +1650,78 @@ document.addEventListener("keydown", function(e){
     ){
         e.preventDefault();
     }
-
 });
 </script>
 
 <script>
 function updatePlayButton(){
-
     if(!ytPlayer || typeof ytPlayer.getPlayerState !== "function") return;
-
     let state = ytPlayer.getPlayerState();
-
-    $("playPauseBtn").textContent =
-        state === YT.PlayerState.PLAYING
-        ? "⏸"
-        : "▶";
+    $("playPauseBtn").textContent = state === YT.PlayerState.PLAYING ? "⏸" : "▶";
 }
 
-
 $("playPauseBtn").onclick = function(){
-
     if(!ytPlayer || typeof ytPlayer.getPlayerState !== "function") return;
-
     let state = ytPlayer.getPlayerState();
-
     if(state === YT.PlayerState.PLAYING){
-
         ytPlayer.pauseVideo();
-
     }else{
-
         ytPlayer.playVideo();
-
     }
-
     setTimeout(updatePlayButton,150);
 };
 
-
 $("back10Btn").onclick = function(){
-
     if(!ytPlayer || typeof ytPlayer.getCurrentTime !== "function") return;
-
     let time = ytPlayer.getCurrentTime();
-
-    ytPlayer.seekTo(
-        Math.max(0,time-10),
-        true
-    );
-
+    ytPlayer.seekTo(Math.max(0, time - 10), true);
 };
-
 
 $("forward10Btn").onclick = function(){
-
     if(!ytPlayer || typeof ytPlayer.getCurrentTime !== "function") return;
-
     let time = ytPlayer.getCurrentTime();
-
-    ytPlayer.seekTo(
-        time+10,
-        true
-    );
-
+    ytPlayer.seekTo(time + 10, true);
 };
-
 
 let muted = false;
-
 $("muteBtn").onclick = function(){
-
     if(!ytPlayer) return;
-
     if(muted){
-
         if(typeof ytPlayer.unMute === "function") ytPlayer.unMute();
-
         $("muteBtn").textContent="🔊";
-
         muted=false;
-
     }else{
-
         if(typeof ytPlayer.mute === "function") ytPlayer.mute();
-
         $("muteBtn").textContent="🔇";
-
         muted=true;
-
     }
-
 };
-
 
 $("fullscreenBtn").onclick = async function(){
-
-    let box=$("customPlayer");
-
+    let box = $("customPlayer");
     try{
-
         if(box.requestFullscreen){
-
             await box.requestFullscreen();
-
         }else if(box.webkitRequestFullscreen){
-
             box.webkitRequestFullscreen();
-
         }
-
         $("fullscreenBtn").classList.add("hidden");
         $("exitFullscreenBtn").classList.remove("hidden");
-
     }catch(e){}
-
 };
-
 
 $("exitFullscreenBtn").onclick = function(){
-
     if(document.exitFullscreen){
-
         document.exitFullscreen();
-
     }else if(document.webkitExitFullscreen){
-
         document.webkitExitFullscreen();
-
     }
-
 };
 
-
-document.addEventListener("fullscreenchange",function(){
-
-    let full=!!document.fullscreenElement;
-
-    $("fullscreenBtn").classList.toggle(
-        "hidden",
-        full
-    );
-
-    $("exitFullscreenBtn").classList.toggle(
-        "hidden",
-        !full
-    );
-
+document.addEventListener("fullscreenchange", function(){
+    let full = !!document.fullscreenElement;
+    $("fullscreenBtn").classList.toggle("hidden", full);
+    $("exitFullscreenBtn").classList.toggle("hidden", !full);
 });
 </script>
 
