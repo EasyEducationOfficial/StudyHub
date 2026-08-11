@@ -2492,120 +2492,53 @@ e.message
    STUDENT LIST
 ========================= */
 
-$("studentsBtn").onclick=
-async()=>{
+$("studentsBtn").onclick = async () => {
+  let password = prompt("Enter admin password:");
 
-let password=
-prompt(
-"Enter admin password:"
-);
+  if (!password) return;
 
+  let r = await sb.rpc("admin_list_students", {
+    p_password: password
+  });
 
-if(!password)return;
+  if (r.error) {
+    return adminMessage(r.error.message);
+  }
 
+  if (!r.data?.success) {
+    return adminMessage("Wrong admin password.");
+  }
 
-let r=
-await sb.rpc(
-"admin_list_students",
-{
-p_password:password
-}
-);
+  $("studentsPanel").classList.remove("hidden");
 
+  let students = Array.isArray(r.data.students) ? r.data.students : [];
 
-if(r.error){
+  $("students").innerHTML = students.map(s => `
+    <div class="item" style="display:block; padding:12px; margin-bottom:10px; border:1px solid #e5e9f0; border-radius:10px; background:#fff;">
+      <div style="margin-bottom:10px; line-height:1.6;">
+        <div><strong>Name:</strong> ${esc(s.name)}</div>
+        <div><strong>Phone / Username:</strong> ${esc(s.login_id)}</div>
+        <div><strong>Password:</strong> <span style="color:#ef4444; font-weight:bold;">${esc(s.password)}</span></div>
+        <div class="muted" style="font-size:12px; margin-top:4px;">
+          Created: ${s.created_at ? new Date(s.created_at).toLocaleString() : "Unknown"}
+        </div>
+      </div>
 
-return adminMessage(
-r.error.message
-);
+      <button
+        class="btn secondary small"
+        data-change="${esc(s.id)}"
+        data-login="${esc(s.login_id)}"
+      >
+        🔑 Change Password
+      </button>
+    </div>
+  `).join("") || `<div class="empty">No students registered yet.</div>`;
 
-}
-
-
-if(!r.data?.success){
-
-return adminMessage(
-"Wrong admin password."
-);
-
-}
-
-
-$("studentsPanel")
-.classList.remove("hidden");
-
-
-let students=
-Array.isArray(
-r.data.students
-)?
-r.data.students:
-[];
-
-
-$("students").innerHTML=
-students.map(s=>`
-
-<div class="item" style="display:block">
-
-<div style="margin-bottom:10px">
-
-<b style="font-size:16px">
-${esc(s.name)}
-</b>
-
-<div class="muted">
-Username / Number: ${esc(s.login_id)}
-</div>
-
-<div class="muted">
-User ID: ${esc(s.id)}
-</div>
-
-<div class="muted">
-Created: ${
-s.created_at
-?
-new Date(s.created_at).toLocaleString()
-:
-"Unknown"
-}
-</div>
-
-</div>
-
-<button
-class="btn secondary small"
-data-change="${esc(s.id)}"
-data-login="${esc(s.login_id)}"
->
-🔑 Change Password
-</button>
-
-</div>
-
-`).join("")
-
-||
-
-`<div class="empty">
-No students registered yet.
-</div>`;
-
-
-$("students")
-.querySelectorAll("[data-change]")
-.forEach(button=>{
-
-button.onclick=()=>
-changeStudentPassword(
-button.dataset.change,
-button.dataset.login
-);
-
-});
-
+  $("students").querySelectorAll("[data-change]").forEach(button => {
+    button.onclick = () => changeStudentPassword(button.dataset.change, button.dataset.login);
+  });
 };
+ 
 
 
 /* =========================
