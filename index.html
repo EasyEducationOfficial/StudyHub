@@ -390,22 +390,13 @@ button,input{font:inherit}
     pointer-events:auto;
 }
 
-/* Controls er jaygay touch/click block hobe na */
 .custom-controls{
     pointer-events:auto;
-    z-index:30;
-}
-
-.custom-controls button{
-    pointer-events:auto;
-}
-
-.custom-controls{
     position:absolute;
     left:0;
     right:0;
     bottom:0;
-    z-index:20;
+    z-index:30;
     display:flex;
     align-items:center;
     gap:7px;
@@ -700,7 +691,7 @@ allowfullscreen>
 </iframe>
 
     <!-- Completely blocks touching YouTube itself -->
-    <div class="player-touch-block"></div>
+    <div class="player-touch-block" id="playerTouchBlock"></div>
 
     <!-- Our own controls -->
     <div class="custom-controls">
@@ -1715,37 +1706,38 @@ view("videoView");
    WATCH VIDEO
 ========================= */
 
-function openWatch(index){
-
 let ytPlayer = null;
 
 function openWatch(index){
-
-   let ytPlayer = null;
-
-function openWatch(index){
-
-    let video = currentTopic?.videos?.[index];
-    let id = ytId(video?.url);
-
+    const video = currentTopic?.videos?.[index];
+    const id = ytId(video?.url);
     if(!video || !id) return;
 
     $("watchTitle").textContent = video.title;
 
+    if(ytPlayer){
+        try{ ytPlayer.destroy(); }catch(e){}
+        ytPlayer = null;
+    }
+
     $("player").src =
         "https://www.youtube-nocookie.com/embed/" +
         encodeURIComponent(id) +
-        "?enablejsapi=1" +
-        "&rel=0" +
-        "&playsinline=1" +
-        "&controls=0" +
-        "&fs=0" +
-        "&disablekb=1" +
-        "&iv_load_policy=3";
+        "?enablejsapi=1&rel=0&playsinline=1&controls=0&fs=0&disablekb=1&iv_load_policy=3&modestbranding=1";
 
     view("watchView");
 
-    setTimeout(initYouTubePlayer, 300);
+    const create = () => {
+        if(typeof YT === "undefined" || !YT.Player) return;
+        ytPlayer = new YT.Player("player", {
+            events:{
+                onReady: updatePlayButton,
+                onStateChange: updatePlayButton
+            }
+        });
+    };
+
+    setTimeout(create, 400);
 }
 
 /* =========================
@@ -2898,314 +2890,92 @@ document.addEventListener("keydown", function(e){
 </script>
 <script>
 function updatePlayButton(){
-
-    if(!ytPlayer) return;
-
-    let state = ytPlayer.getPlayerState();
-
+    if(!ytPlayer || typeof YT === "undefined") return;
+    const state = ytPlayer.getPlayerState();
     $("playPauseBtn").textContent =
-        state === YT.PlayerState.PLAYING
-        ? "⏸"
-        : "▶";
+        state === YT.PlayerState.PLAYING ? "⏸" : "▶";
 }
 
+function stopControlEvent(e){
+    e.preventDefault();
+    e.stopPropagation();
+}
 
-$("playPauseBtn").onclick = function(){
-
+$("playPauseBtn").onclick=function(e){
+    stopControlEvent(e);
     if(!ytPlayer) return;
-
-    let state = ytPlayer.getPlayerState();
-
-    if(state === YT.PlayerState.PLAYING){
-
-        ytPlayer.pauseVideo();
-
-    }else{
-
-        ytPlayer.playVideo();
-
-    }
-
+    const state=ytPlayer.getPlayerState();
+    if(state===YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
+    else ytPlayer.playVideo();
     setTimeout(updatePlayButton,150);
 };
 
-
-$("back10Btn").onclick = function(){
-
+$("back10Btn").onclick=function(e){
+    stopControlEvent(e);
     if(!ytPlayer) return;
-
-    let time = ytPlayer.getCurrentTime();
-
-    ytPlayer.seekTo(
-        Math.max(0,time-10),
-        true
-    );
-
+    ytPlayer.seekTo(Math.max(0,ytPlayer.getCurrentTime()-10),true);
 };
 
-
-$("forward10Btn").onclick = function(){
-
+$("forward10Btn").onclick=function(e){
+    stopControlEvent(e);
     if(!ytPlayer) return;
-
-    let time = ytPlayer.getCurrentTime();
-
-    ytPlayer.seekTo(
-        time+10,
-        true
-    );
-
+    ytPlayer.seekTo(ytPlayer.getCurrentTime()+10,true);
 };
 
-
-let muted = false;
-
-$("muteBtn").onclick = function(){
-
+$("muteBtn").onclick=function(e){
+    stopControlEvent(e);
     if(!ytPlayer) return;
-
-    if(muted){
-
+    if(ytPlayer.isMuted()){
         ytPlayer.unMute();
-
         $("muteBtn").textContent="🔊";
-
-        muted=false;
-
     }else{
-
         ytPlayer.mute();
-
         $("muteBtn").textContent="🔇";
-
-        muted=true;
-
     }
-
 };
 
-
-$("fullscreenBtn").onclick = async function(){
-
-    let box=$("customPlayer");
-
+$("fullscreenBtn").onclick=async function(e){
+    stopControlEvent(e);
+    const box=$("customPlayer");
     try{
-
-        if(box.requestFullscreen){
-
-            await box.requestFullscreen();
-
-        }else if(box.webkitRequestFullscreen){
-
-            box.webkitRequestFullscreen();
-
-        }
-
-        $("fullscreenBtn").classList.add("hidden");
-        $("exitFullscreenBtn").classList.remove("hidden");
-
-    }catch(e){}
-
+        if(box.requestFullscreen) await box.requestFullscreen();
+        else if(box.webkitRequestFullscreen) box.webkitRequestFullscreen();
+    }catch(err){}
 };
 
-
-$("exitFullscreenBtn").onclick = function(){
-
-    if(document.exitFullscreen){
-
-        document.exitFullscreen();
-
-    }
-
+$("exitFullscreenBtn").onclick=function(e){
+    stopControlEvent(e);
+    try{
+        if(document.exitFullscreen) document.exitFullscreen();
+        else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+    }catch(err){}
 };
-
 
 document.addEventListener("fullscreenchange",function(){
-
-    let full=!!document.fullscreenElement;
-
-    $("fullscreenBtn").classList.toggle(
-        "hidden",
-        full
-    );
-
-    $("exitFullscreenBtn").classList.toggle(
-        "hidden",
-        !full
-    );
-
+    const full=!!document.fullscreenElement;
+    $("fullscreenBtn").classList.toggle("hidden",full);
+    $("exitFullscreenBtn").classList.toggle("hidden",!full);
 });
-function initYouTubePlayer(){
 
-    if(typeof YT === "undefined") return;
-
-    if(ytPlayer){
-        try{
-            ytPlayer.destroy();
-        }catch(e){}
-    }
-
-    ytPlayer = new YT.Player("player", {
-
-        events:{
-            onReady:function(){
-
-                updatePlayButton();
-
-            }
-        }
-
+/* Only our six controls are interactive.
+   Every other touch/click inside the player is consumed. */
+const playerBlock=$("playerTouchBlock");
+if(playerBlock){
+    ["click","dblclick","pointerdown","pointerup","touchstart","touchend","mousedown","mouseup","contextmenu"].forEach(type=>{
+        playerBlock.addEventListener(type,function(e){
+            e.preventDefault();
+            e.stopPropagation();
+        },{passive:false});
     });
 }
 
-
-function updatePlayButton(){
-
-    if(!ytPlayer) return;
-
-    let state = ytPlayer.getPlayerState();
-
-    $("playPauseBtn").textContent =
-        state === YT.PlayerState.PLAYING
-        ? "⏸"
-        : "▶";
-}
-
-
-$("playPauseBtn").onclick=function(e){
-
-    e.stopPropagation();
-
-    if(!ytPlayer) return;
-
-    let state = ytPlayer.getPlayerState();
-
-    if(state === YT.PlayerState.PLAYING){
-
-        ytPlayer.pauseVideo();
-
-    }else{
-
-        ytPlayer.playVideo();
-
+$("customPlayer").addEventListener("click",function(e){
+    if(!e.target.closest(".custom-controls")){
+        e.preventDefault();
+        e.stopPropagation();
     }
-
-    setTimeout(updatePlayButton,150);
-
-};
-
-
-$("back10Btn").onclick=function(e){
-
-    e.stopPropagation();
-
-    if(!ytPlayer) return;
-
-    let time=ytPlayer.getCurrentTime();
-
-    ytPlayer.seekTo(
-        Math.max(0,time-10),
-        true
-    );
-
-};
-
-
-$("forward10Btn").onclick=function(e){
-
-    e.stopPropagation();
-
-    if(!ytPlayer) return;
-
-    let time=ytPlayer.getCurrentTime();
-
-    ytPlayer.seekTo(
-        time+10,
-        true
-    );
-
-};
-
-
-$("muteBtn").onclick=function(e){
-
-    e.stopPropagation();
-
-    if(!ytPlayer) return;
-
-    if(ytPlayer.isMuted()){
-
-        ytPlayer.unMute();
-
-        $("muteBtn").textContent="🔊";
-
-    }else{
-
-        ytPlayer.mute();
-
-        $("muteBtn").textContent="🔇";
-
-    }
-
-};
-
-
-$("fullscreenBtn").onclick=async function(e){
-
-    e.stopPropagation();
-
-    let box=$("customPlayer");
-
-    try{
-
-        if(box.requestFullscreen){
-
-            await box.requestFullscreen();
-
-        }else if(box.webkitRequestFullscreen){
-
-            box.webkitRequestFullscreen();
-
-        }
-
-    }catch(e){}
-
-};
-
-
-$("exitFullscreenBtn").onclick=function(e){
-
-    e.stopPropagation();
-
-    if(document.exitFullscreen){
-
-        document.exitFullscreen();
-
-    }
-
-};
-
-
-document.addEventListener(
-"fullscreenchange",
-function(){
-
-    let full=!!document.fullscreenElement;
-
-    $("fullscreenBtn").classList.toggle(
-        "hidden",
-        full
-    );
-
-    $("exitFullscreenBtn").classList.toggle(
-        "hidden",
-        !full
-    );
-
-}
-);
+},true);
 </script>
-<script src="https://www.youtube.com/iframe_api"></script>
 
 </body>
 </html>
