@@ -2546,27 +2546,40 @@ r.data.students:
 $("students").innerHTML=
 students.map(s=>`
 
-<div class="item">
+<div class="item" style="display:block">
 
-<div>
+<div style="margin-bottom:10px">
 
-<b>
+<b style="font-size:16px">
 ${esc(s.name)}
 </b>
 
 <div class="muted">
-${esc(s.login_id)}
+Username / Number: ${esc(s.login_id)}
+</div>
+
+<div class="muted">
+User ID: ${esc(s.id)}
+</div>
+
+<div class="muted">
+Created: ${
+s.created_at
+?
+new Date(s.created_at).toLocaleString()
+:
+"Unknown"
+}
 </div>
 
 </div>
-
 
 <button
 class="btn secondary small"
 data-change="${esc(s.id)}"
 data-login="${esc(s.login_id)}"
 >
-Change password
+🔑 Change Password
 </button>
 
 </div>
@@ -2576,7 +2589,7 @@ Change password
 ||
 
 `<div class="empty">
-No students.
+No students registered yet.
 </div>`;
 
 
