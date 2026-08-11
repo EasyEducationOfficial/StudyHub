@@ -429,38 +429,9 @@ button,input{font:inherit}
     aspect-ratio:auto;
 }
 
-.custom-player{
-    position:relative;
-}
-
-.custom-player iframe{
-    pointer-events:none !important;
-}
-
-.player-touch-block{
-    position:absolute;
-    inset:0;
-    z-index:10;
-    background:transparent;
-    pointer-events:auto;
-}
-
+.custom-player:fullscreen 
 .custom-controls{
-    position:absolute;
-    left:0;
-    right:0;
-    bottom:0;
-    z-index:100;
-}
-
-.custom-controls button{
-    border:0;
-    background:rgba(0,0,0,.65);
-    color:#fff;
-    border-radius:8px;
-    padding:8px 10px;
-    cursor:pointer;
-    font-weight:700;
+    bottom:10px;
 }
 </style>
 </head>
@@ -712,10 +683,11 @@ Choose a subject to continue your study.
 <div class="custom-player" id="customPlayer">
 
     <iframe
-        id="player"
-        allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-        allowfullscreen>
-    </iframe>
+id="player"
+style="pointer-events:none !important;"
+allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+allowfullscreen>
+</iframe>
 
     <!-- Completely blocks touching YouTube itself -->
     <div class="player-touch-block"></div>
