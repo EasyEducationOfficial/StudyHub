@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Eazy Education</title>
 
+<!-- Supabase JS Library -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
 *{box-sizing:border-box}
 body{
@@ -391,12 +394,11 @@ button,input{font:inherit}
 }
 
 .custom-controls{
-    pointer-events:auto;
     position:absolute;
     left:0;
     right:0;
     bottom:0;
-    z-index:30;
+    z-index:20;
     display:flex;
     align-items:center;
     gap:7px;
@@ -691,7 +693,7 @@ allowfullscreen>
 </iframe>
 
     <!-- Completely blocks touching YouTube itself -->
-    <div class="player-touch-block" id="playerTouchBlock"></div>
+    <div class="player-touch-block"></div>
 
     <!-- Our own controls -->
     <div class="custom-controls">
@@ -872,6 +874,7 @@ let currentSubject=null;
 let currentTopic=null;
 let adminSubject=null;
 let adminOpen=false;
+let ytPlayer=null;
 
 
 /* =========================
@@ -915,7 +918,12 @@ function ytId(url){
 
 try{
 
-let x=new URL(url.trim());
+let raw = url.trim();
+if(!/^https?:\/\//i.test(raw)){
+    raw = "https://" + raw;
+}
+
+let x=new URL(raw);
 
 let host=
 x.hostname
@@ -1454,6 +1462,11 @@ localStorage.removeItem(
 "studyhub_user"
 );
 
+if(ytPlayer && typeof ytPlayer.destroy === 'function'){
+    try{ ytPlayer.destroy(); }catch(e){}
+    ytPlayer = null;
+}
+
 $("player").src="";
 
 openAuth();
@@ -1706,16 +1719,16 @@ view("videoView");
    WATCH VIDEO
 ========================= */
 
-let ytPlayer = null;
-
 function openWatch(index){
-    const video = currentTopic?.videos?.[index];
-    const id = ytId(video?.url);
+
+    let video = currentTopic?.videos?.[index];
+    let id = ytId(video?.url);
+
     if(!video || !id) return;
 
     $("watchTitle").textContent = video.title;
 
-    if(ytPlayer){
+    if(ytPlayer && typeof ytPlayer.destroy === 'function'){
         try{ ytPlayer.destroy(); }catch(e){}
         ytPlayer = null;
     }
@@ -1723,22 +1736,35 @@ function openWatch(index){
     $("player").src =
         "https://www.youtube-nocookie.com/embed/" +
         encodeURIComponent(id) +
-        "?enablejsapi=1&rel=0&playsinline=1&controls=0&fs=0&disablekb=1&iv_load_policy=3&modestbranding=1";
+        "?enablejsapi=1" +
+        "&rel=0" +
+        "&playsinline=1" +
+        "&controls=0" +
+        "&disablekb=1" +
+        "&modestbranding=1";
 
     view("watchView");
 
-    const create = () => {
-        if(typeof YT === "undefined" || !YT.Player) return;
-        ytPlayer = new YT.Player("player", {
-            events:{
-                onReady: updatePlayButton,
-                onStateChange: updatePlayButton
-            }
-        });
-    };
+    setTimeout(() => {
 
-    setTimeout(create, 400);
+        if(typeof YT !== "undefined" && YT.Player){
+
+            ytPlayer = new YT.Player("player", {
+                events:{
+                    onReady:function(){
+                        if(typeof updatePlayButton === "function") updatePlayButton();
+                    },
+                    onStateChange:function(){
+                        if(typeof updatePlayButton === "function") updatePlayButton();
+                    }
+                }
+            });
+
+        }
+
+    },300);
 }
+
 
 /* =========================
    BACK BUTTONS
@@ -1759,6 +1785,11 @@ view("topicView");
 
 
 $("watchBack").onclick=()=>{
+
+if(ytPlayer && typeof ytPlayer.destroy === 'function'){
+    try{ ytPlayer.destroy(); }catch(e){}
+    ytPlayer = null;
+}
 
 $("player").src="";
 
@@ -2888,93 +2919,150 @@ document.addEventListener("keydown", function(e){
 
 });
 </script>
+
 <script>
 function updatePlayButton(){
-    if(!ytPlayer || typeof YT === "undefined") return;
-    const state = ytPlayer.getPlayerState();
+
+    if(!ytPlayer || typeof ytPlayer.getPlayerState !== "function") return;
+
+    let state = ytPlayer.getPlayerState();
+
     $("playPauseBtn").textContent =
-        state === YT.PlayerState.PLAYING ? "⏸" : "▶";
+        state === YT.PlayerState.PLAYING
+        ? "⏸"
+        : "▶";
 }
 
-function stopControlEvent(e){
-    e.preventDefault();
-    e.stopPropagation();
-}
 
-$("playPauseBtn").onclick=function(e){
-    stopControlEvent(e);
-    if(!ytPlayer) return;
-    const state=ytPlayer.getPlayerState();
-    if(state===YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
-    else ytPlayer.playVideo();
+$("playPauseBtn").onclick = function(){
+
+    if(!ytPlayer || typeof ytPlayer.getPlayerState !== "function") return;
+
+    let state = ytPlayer.getPlayerState();
+
+    if(state === YT.PlayerState.PLAYING){
+
+        ytPlayer.pauseVideo();
+
+    }else{
+
+        ytPlayer.playVideo();
+
+    }
+
     setTimeout(updatePlayButton,150);
 };
 
-$("back10Btn").onclick=function(e){
-    stopControlEvent(e);
-    if(!ytPlayer) return;
-    ytPlayer.seekTo(Math.max(0,ytPlayer.getCurrentTime()-10),true);
+
+$("back10Btn").onclick = function(){
+
+    if(!ytPlayer || typeof ytPlayer.getCurrentTime !== "function") return;
+
+    let time = ytPlayer.getCurrentTime();
+
+    ytPlayer.seekTo(
+        Math.max(0,time-10),
+        true
+    );
+
 };
 
-$("forward10Btn").onclick=function(e){
-    stopControlEvent(e);
-    if(!ytPlayer) return;
-    ytPlayer.seekTo(ytPlayer.getCurrentTime()+10,true);
+
+$("forward10Btn").onclick = function(){
+
+    if(!ytPlayer || typeof ytPlayer.getCurrentTime !== "function") return;
+
+    let time = ytPlayer.getCurrentTime();
+
+    ytPlayer.seekTo(
+        time+10,
+        true
+    );
+
 };
 
-$("muteBtn").onclick=function(e){
-    stopControlEvent(e);
+
+let muted = false;
+
+$("muteBtn").onclick = function(){
+
     if(!ytPlayer) return;
-    if(ytPlayer.isMuted()){
-        ytPlayer.unMute();
+
+    if(muted){
+
+        if(typeof ytPlayer.unMute === "function") ytPlayer.unMute();
+
         $("muteBtn").textContent="🔊";
+
+        muted=false;
+
     }else{
-        ytPlayer.mute();
+
+        if(typeof ytPlayer.mute === "function") ytPlayer.mute();
+
         $("muteBtn").textContent="🔇";
+
+        muted=true;
+
     }
+
 };
 
-$("fullscreenBtn").onclick=async function(e){
-    stopControlEvent(e);
-    const box=$("customPlayer");
+
+$("fullscreenBtn").onclick = async function(){
+
+    let box=$("customPlayer");
+
     try{
-        if(box.requestFullscreen) await box.requestFullscreen();
-        else if(box.webkitRequestFullscreen) box.webkitRequestFullscreen();
-    }catch(err){}
+
+        if(box.requestFullscreen){
+
+            await box.requestFullscreen();
+
+        }else if(box.webkitRequestFullscreen){
+
+            box.webkitRequestFullscreen();
+
+        }
+
+        $("fullscreenBtn").classList.add("hidden");
+        $("exitFullscreenBtn").classList.remove("hidden");
+
+    }catch(e){}
+
 };
 
-$("exitFullscreenBtn").onclick=function(e){
-    stopControlEvent(e);
-    try{
-        if(document.exitFullscreen) document.exitFullscreen();
-        else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
-    }catch(err){}
+
+$("exitFullscreenBtn").onclick = function(){
+
+    if(document.exitFullscreen){
+
+        document.exitFullscreen();
+
+    }else if(document.webkitExitFullscreen){
+
+        document.webkitExitFullscreen();
+
+    }
+
 };
+
 
 document.addEventListener("fullscreenchange",function(){
-    const full=!!document.fullscreenElement;
-    $("fullscreenBtn").classList.toggle("hidden",full);
-    $("exitFullscreenBtn").classList.toggle("hidden",!full);
+
+    let full=!!document.fullscreenElement;
+
+    $("fullscreenBtn").classList.toggle(
+        "hidden",
+        full
+    );
+
+    $("exitFullscreenBtn").classList.toggle(
+        "hidden",
+        !full
+    );
+
 });
-
-/* Only our six controls are interactive.
-   Every other touch/click inside the player is consumed. */
-const playerBlock=$("playerTouchBlock");
-if(playerBlock){
-    ["click","dblclick","pointerdown","pointerup","touchstart","touchend","mousedown","mouseup","contextmenu"].forEach(type=>{
-        playerBlock.addEventListener(type,function(e){
-            e.preventDefault();
-            e.stopPropagation();
-        },{passive:false});
-    });
-}
-
-$("customPlayer").addEventListener("click",function(e){
-    if(!e.target.closest(".custom-controls")){
-        e.preventDefault();
-        e.stopPropagation();
-    }
-},true);
 </script>
 
 </body>
