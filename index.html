@@ -390,6 +390,16 @@ button,input{font:inherit}
     pointer-events:auto;
 }
 
+/* Controls er jaygay touch/click block hobe na */
+.custom-controls{
+    pointer-events:auto;
+    z-index:30;
+}
+
+.custom-controls button{
+    pointer-events:auto;
+}
+
 .custom-controls{
     position:absolute;
     left:0;
@@ -684,9 +694,11 @@ Choose a subject to continue your study.
 
     <iframe
 id="player"
+style="pointer-events:none !important;"
 allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
 allowfullscreen>
-    </iframe>
+</iframe>
+
     <!-- Completely blocks touching YouTube itself -->
     <div class="player-touch-block"></div>
 
@@ -1709,6 +1721,10 @@ let ytPlayer = null;
 
 function openWatch(index){
 
+   let ytPlayer = null;
+
+function openWatch(index){
+
     let video = currentTopic?.videos?.[index];
     let id = ytId(video?.url);
 
@@ -1723,32 +1739,14 @@ function openWatch(index){
         "&rel=0" +
         "&playsinline=1" +
         "&controls=0" +
+        "&fs=0" +
         "&disablekb=1" +
-        "&iv_load_policy=3" +
-        "&modestbranding=1";
+        "&iv_load_policy=3";
 
     view("watchView");
 
-    setTimeout(() => {
-
-        if(typeof YT !== "undefined" && YT.Player){
-
-            ytPlayer = new YT.Player("player", {
-                events:{
-                    onReady:function(){
-                        updatePlayButton();
-                    },
-                    onStateChange:function(){
-                        updatePlayButton();
-                    }
-                }
-            });
-
-        }
-
-    },300);
+    setTimeout(initYouTubePlayer, 300);
 }
-
 
 /* =========================
    BACK BUTTONS
@@ -3037,7 +3035,177 @@ document.addEventListener("fullscreenchange",function(){
     );
 
 });
+function initYouTubePlayer(){
+
+    if(typeof YT === "undefined") return;
+
+    if(ytPlayer){
+        try{
+            ytPlayer.destroy();
+        }catch(e){}
+    }
+
+    ytPlayer = new YT.Player("player", {
+
+        events:{
+            onReady:function(){
+
+                updatePlayButton();
+
+            }
+        }
+
+    });
+}
+
+
+function updatePlayButton(){
+
+    if(!ytPlayer) return;
+
+    let state = ytPlayer.getPlayerState();
+
+    $("playPauseBtn").textContent =
+        state === YT.PlayerState.PLAYING
+        ? "⏸"
+        : "▶";
+}
+
+
+$("playPauseBtn").onclick=function(e){
+
+    e.stopPropagation();
+
+    if(!ytPlayer) return;
+
+    let state = ytPlayer.getPlayerState();
+
+    if(state === YT.PlayerState.PLAYING){
+
+        ytPlayer.pauseVideo();
+
+    }else{
+
+        ytPlayer.playVideo();
+
+    }
+
+    setTimeout(updatePlayButton,150);
+
+};
+
+
+$("back10Btn").onclick=function(e){
+
+    e.stopPropagation();
+
+    if(!ytPlayer) return;
+
+    let time=ytPlayer.getCurrentTime();
+
+    ytPlayer.seekTo(
+        Math.max(0,time-10),
+        true
+    );
+
+};
+
+
+$("forward10Btn").onclick=function(e){
+
+    e.stopPropagation();
+
+    if(!ytPlayer) return;
+
+    let time=ytPlayer.getCurrentTime();
+
+    ytPlayer.seekTo(
+        time+10,
+        true
+    );
+
+};
+
+
+$("muteBtn").onclick=function(e){
+
+    e.stopPropagation();
+
+    if(!ytPlayer) return;
+
+    if(ytPlayer.isMuted()){
+
+        ytPlayer.unMute();
+
+        $("muteBtn").textContent="🔊";
+
+    }else{
+
+        ytPlayer.mute();
+
+        $("muteBtn").textContent="🔇";
+
+    }
+
+};
+
+
+$("fullscreenBtn").onclick=async function(e){
+
+    e.stopPropagation();
+
+    let box=$("customPlayer");
+
+    try{
+
+        if(box.requestFullscreen){
+
+            await box.requestFullscreen();
+
+        }else if(box.webkitRequestFullscreen){
+
+            box.webkitRequestFullscreen();
+
+        }
+
+    }catch(e){}
+
+};
+
+
+$("exitFullscreenBtn").onclick=function(e){
+
+    e.stopPropagation();
+
+    if(document.exitFullscreen){
+
+        document.exitFullscreen();
+
+    }
+
+};
+
+
+document.addEventListener(
+"fullscreenchange",
+function(){
+
+    let full=!!document.fullscreenElement;
+
+    $("fullscreenBtn").classList.toggle(
+        "hidden",
+        full
+    );
+
+    $("exitFullscreenBtn").classList.toggle(
+        "hidden",
+        !full
+    );
+
+}
+);
 </script>
+<script src="https://www.youtube.com/iframe_api"></script>
 
 </body>
 </html>
