@@ -366,6 +366,72 @@ button,input{font:inherit}
  .grid3,.grid2{grid-template-columns:1fr}
  .container{padding:22px 14px 45px}
 }
+.custom-player{
+    position:relative;
+    background:#000;
+    border-radius:14px;
+    overflow:hidden;
+    width:100%;
+}
+
+.custom-player iframe{
+    display:block;
+    width:100%;
+    aspect-ratio:16/9;
+    border:0;
+    pointer-events:none !important;
+}
+
+.player-touch-block{
+    position:absolute;
+    inset:0;
+    z-index:10;
+    background:transparent;
+    pointer-events:auto;
+}
+
+.custom-controls{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    z-index:20;
+    display:flex;
+    align-items:center;
+    gap:7px;
+    padding:10px;
+    background:linear-gradient(transparent,rgba(0,0,0,.85));
+}
+
+.custom-controls button{
+    border:0;
+    background:rgba(0,0,0,.65);
+    color:#fff;
+    border-radius:8px;
+    padding:8px 10px;
+    cursor:pointer;
+    font-weight:700;
+}
+
+.custom-controls button:active{
+    transform:scale(.94);
+}
+
+.custom-player:fullscreen{
+    width:100vw;
+    height:100vh;
+    border-radius:0;
+}
+
+.custom-player:fullscreen iframe{
+    width:100%;
+    height:100%;
+    aspect-ratio:auto;
+}
+
+.custom-player:fullscreen .custom-controls{
+    bottom:10px;
+}
 </style>
 </head>
 
@@ -613,18 +679,33 @@ Choose a subject to continue your study.
 
 <div class="card">
 
-<div class="player video-protect">
+<div class="custom-player" id="customPlayer">
 
-<iframe
-id="player"
-allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-allowfullscreen>
-</iframe>
+    <iframe
+        id="player"
+        allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+        allowfullscreen>
+    </iframe>
 
-<!-- Block YouTube top title/channel area -->
-<div class="youtube-top-block"></div>
+    <!-- Completely blocks touching YouTube itself -->
+    <div class="player-touch-block"></div>
 
-<div class="video-block-share"></div>
+    <!-- Our own controls -->
+    <div class="custom-controls">
+
+        <button id="playPauseBtn" type="button">▶</button>
+
+        <button id="back10Btn" type="button">↶ 10</button>
+
+        <button id="forward10Btn" type="button">10 ↷</button>
+
+        <button id="muteBtn" type="button">🔊</button>
+
+        <button id="fullscreenBtn" type="button">⛶</button>
+
+        <button id="exitFullscreenBtn" type="button" class="hidden">✕</button>
+
+    </div>
 
 </div>
 
@@ -751,7 +832,7 @@ Select a subject.
 </section>
 
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
 
@@ -1624,26 +1705,48 @@ view("videoView");
 
 function openWatch(index){
 
-let video = currentTopic?.videos?.[index];
-let id = ytId(video?.url);
+let ytPlayer = null;
 
-if(!video || !id) return;
+function openWatch(index){
 
-$("watchTitle").textContent = video.title;
+    let video = currentTopic?.videos?.[index];
+    let id = ytId(video?.url);
 
-$("player").src =
-"https://www.youtube-nocookie.com/embed/" +
-encodeURIComponent(id) +
-"?rel=0" +
-"&playsinline=1" +
-"&controls=1" +
-"&fs=1" +
-"&disablekb=1" +
-"&iv_load_policy=3" +
-"&modestbranding=1";
+    if(!video || !id) return;
 
-view("watchView");
+    $("watchTitle").textContent = video.title;
 
+    $("player").src =
+        "https://www.youtube-nocookie.com/embed/" +
+        encodeURIComponent(id) +
+        "?enablejsapi=1" +
+        "&rel=0" +
+        "&playsinline=1" +
+        "&controls=0" +
+        "&disablekb=1" +
+        "&iv_load_policy=3" +
+        "&modestbranding=1";
+
+    view("watchView");
+
+    setTimeout(() => {
+
+        if(typeof YT !== "undefined" && YT.Player){
+
+            ytPlayer = new YT.Player("player", {
+                events:{
+                    onReady:function(){
+                        updatePlayButton();
+                    },
+                    onStateChange:function(){
+                        updatePlayButton();
+                    }
+                }
+            });
+
+        }
+
+    },300);
 }
 
 
@@ -2495,53 +2598,120 @@ e.message
    STUDENT LIST
 ========================= */
 
-$("studentsBtn").onclick = async () => {
-  let password = prompt("Enter admin password:");
+$("studentsBtn").onclick=
+async()=>{
 
-  if (!password) return;
+let password=
+prompt(
+"Enter admin password:"
+);
 
-  let r = await sb.rpc("admin_list_students", {
-    p_password: password
-  });
 
-  if (r.error) {
-    return adminMessage(r.error.message);
-  }
+if(!password)return;
 
-  if (!r.data?.success) {
-    return adminMessage("Wrong admin password.");
-  }
 
-  $("studentsPanel").classList.remove("hidden");
+let r=
+await sb.rpc(
+"admin_list_students",
+{
+p_password:password
+}
+);
 
-  let students = Array.isArray(r.data.students) ? r.data.students : [];
 
-  $("students").innerHTML = students.map(s => `
-    <div class="item" style="display:block; padding:12px; margin-bottom:10px; border:1px solid #e5e9f0; border-radius:10px; background:#fff;">
-      <div style="margin-bottom:10px; line-height:1.6;">
-        <div><strong>Name:</strong> ${esc(s.name)}</div>
-        <div><strong>Phone / Username:</strong> ${esc(s.login_id)}</div>
-        <div><strong>Password:</strong> <span style="color:#ef4444; font-weight:bold;">${esc(s.password)}</span></div>
-        <div class="muted" style="font-size:12px; margin-top:4px;">
-          Created: ${s.created_at ? new Date(s.created_at).toLocaleString() : "Unknown"}
-        </div>
-      </div>
+if(r.error){
 
-      <button
-        class="btn secondary small"
-        data-change="${esc(s.id)}"
-        data-login="${esc(s.login_id)}"
-      >
-        🔑 Change Password
-      </button>
-    </div>
-  `).join("") || `<div class="empty">No students registered yet.</div>`;
+return adminMessage(
+r.error.message
+);
 
-  $("students").querySelectorAll("[data-change]").forEach(button => {
-    button.onclick = () => changeStudentPassword(button.dataset.change, button.dataset.login);
-  });
+}
+
+
+if(!r.data?.success){
+
+return adminMessage(
+"Wrong admin password."
+);
+
+}
+
+
+$("studentsPanel")
+.classList.remove("hidden");
+
+
+let students=
+Array.isArray(
+r.data.students
+)?
+r.data.students:
+[];
+
+
+$("students").innerHTML=
+students.map(s=>`
+
+<div class="item" style="display:block">
+
+<div style="margin-bottom:10px">
+
+<b style="font-size:16px">
+${esc(s.name)}
+</b>
+
+<div class="muted">
+Username / Number: ${esc(s.login_id)}
+</div>
+
+<div class="muted">
+User ID: ${esc(s.id)}
+</div>
+
+<div class="muted">
+Created: ${
+s.created_at
+?
+new Date(s.created_at).toLocaleString()
+:
+"Unknown"
+}
+</div>
+
+</div>
+
+<button
+class="btn secondary small"
+data-change="${esc(s.id)}"
+data-login="${esc(s.login_id)}"
+>
+🔑 Change Password
+</button>
+
+</div>
+
+`).join("")
+
+||
+
+`<div class="empty">
+No students registered yet.
+</div>`;
+
+
+$("students")
+.querySelectorAll("[data-change]")
+.forEach(button=>{
+
+button.onclick=()=>
+changeStudentPassword(
+button.dataset.change,
+button.dataset.login
+);
+
+});
+
 };
- 
 
 
 /* =========================
@@ -2728,10 +2898,146 @@ document.addEventListener("keydown", function(e){
 
 });
 </script>
+<script>
+function updatePlayButton(){
 
-</body>
-</html>
+    if(!ytPlayer) return;
 
+    let state = ytPlayer.getPlayerState();
+
+    $("playPauseBtn").textContent =
+        state === YT.PlayerState.PLAYING
+        ? "⏸"
+        : "▶";
+}
+
+
+$("playPauseBtn").onclick = function(){
+
+    if(!ytPlayer) return;
+
+    let state = ytPlayer.getPlayerState();
+
+    if(state === YT.PlayerState.PLAYING){
+
+        ytPlayer.pauseVideo();
+
+    }else{
+
+        ytPlayer.playVideo();
+
+    }
+
+    setTimeout(updatePlayButton,150);
+};
+
+
+$("back10Btn").onclick = function(){
+
+    if(!ytPlayer) return;
+
+    let time = ytPlayer.getCurrentTime();
+
+    ytPlayer.seekTo(
+        Math.max(0,time-10),
+        true
+    );
+
+};
+
+
+$("forward10Btn").onclick = function(){
+
+    if(!ytPlayer) return;
+
+    let time = ytPlayer.getCurrentTime();
+
+    ytPlayer.seekTo(
+        time+10,
+        true
+    );
+
+};
+
+
+let muted = false;
+
+$("muteBtn").onclick = function(){
+
+    if(!ytPlayer) return;
+
+    if(muted){
+
+        ytPlayer.unMute();
+
+        $("muteBtn").textContent="🔊";
+
+        muted=false;
+
+    }else{
+
+        ytPlayer.mute();
+
+        $("muteBtn").textContent="🔇";
+
+        muted=true;
+
+    }
+
+};
+
+
+$("fullscreenBtn").onclick = async function(){
+
+    let box=$("customPlayer");
+
+    try{
+
+        if(box.requestFullscreen){
+
+            await box.requestFullscreen();
+
+        }else if(box.webkitRequestFullscreen){
+
+            box.webkitRequestFullscreen();
+
+        }
+
+        $("fullscreenBtn").classList.add("hidden");
+        $("exitFullscreenBtn").classList.remove("hidden");
+
+    }catch(e){}
+
+};
+
+
+$("exitFullscreenBtn").onclick = function(){
+
+    if(document.exitFullscreen){
+
+        document.exitFullscreen();
+
+    }
+
+};
+
+
+document.addEventListener("fullscreenchange",function(){
+
+    let full=!!document.fullscreenElement;
+
+    $("fullscreenBtn").classList.toggle(
+        "hidden",
+        full
+    );
+
+    $("exitFullscreenBtn").classList.toggle(
+        "hidden",
+        !full
+    );
+
+});
+</script>
 
 </body>
 </html>
