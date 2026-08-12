@@ -14,6 +14,7 @@ body{
  color:#172033
 }
 button,input{font:inherit}
+button{touch-action:manipulation}
 .hidden{display:none!important}
 
 .credit{
@@ -366,15 +367,74 @@ button,input{font:inherit}
  .grid3,.grid2{grid-template-columns:1fr}
  .container{padding:22px 14px 45px}
 }
+.custom-player{
+    position:relative;
+    background:#000;
+    border-radius:14px;
+    overflow:hidden;
+    width:100%;
+}
 
+.custom-player iframe{
+    display:block;
+    width:100%;
+    aspect-ratio:16/9;
+    border:0;
+    pointer-events:none !important;
+}
 
+.player-touch-block{
+    position:absolute;
+    inset:0;
+    z-index:10;
+    background:transparent;
+    pointer-events:auto;
+}
 
+.custom-controls{
+    pointer-events:auto;
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    z-index:20;
+    display:flex;
+    align-items:center;
+    gap:7px;
+    padding:10px;
+    background:linear-gradient(transparent,rgba(0,0,0,.85));
+}
 
+.custom-controls button{
+    border:0;
+    background:rgba(0,0,0,.65);
+    color:#fff;
+    border-radius:8px;
+    padding:8px 10px;
+    cursor:pointer;
+    font-weight:700;
+}
 
+.custom-controls button:active{
+    transform:scale(.94);
+}
 
+.custom-player:fullscreen{
+    width:100vw;
+    height:100vh;
+    border-radius:0;
+}
 
+.custom-player:fullscreen iframe{
+    width:100%;
+    height:100%;
+    aspect-ratio:auto;
+}
 
-.custom-player:fullscreen 
+.custom-player:fullscreen
+.custom-controls{
+    bottom:10px;
+}
 </style>
 </head>
 
@@ -491,7 +551,6 @@ Open Admin Panel
 </div>
 </section>
 
-
 <!-- STUDENT WEBSITE -->
 
 <div id="studentApp" class="hidden">
@@ -514,9 +573,7 @@ S
 
 </header>
 
-
 <div id="overlay" class="overlay"></div>
-
 
 <aside id="side" class="side">
 
@@ -544,7 +601,6 @@ style="width:auto;text-align:center">
 
 </aside>
 
-
 <main>
 
 <!-- HOME -->
@@ -571,7 +627,6 @@ Choose a subject to continue your study.
 
 </section>
 
-
 <!-- TOPICS -->
 
 <section id="topicView" class="hidden">
@@ -589,7 +644,6 @@ Choose a subject to continue your study.
 </div>
 
 </section>
-
 
 <!-- VIDEOS -->
 
@@ -609,7 +663,6 @@ Choose a subject to continue your study.
 
 </section>
 
-
 <!-- WATCH -->
 
 <section id="watchView" class="hidden">
@@ -622,13 +675,34 @@ Choose a subject to continue your study.
 
 <div class="card">
 
-<div class="player">
+<div class="custom-player" id="customPlayer">
 
-<iframe
+    <iframe
 id="player"
+style="pointer-events:none !important;"
 allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
 allowfullscreen>
 </iframe>
+
+    <!-- Completely blocks touching YouTube itself -->
+    <div class="player-touch-block"></div>
+
+    <!-- Our own controls -->
+    <div class="custom-controls">
+
+        <button id="playPauseBtn" type="button">▶</button>
+
+        <button id="back10Btn" type="button">↶ 10</button>
+
+        <button id="forward10Btn" type="button">10 ↷</button>
+
+        <button id="muteBtn" type="button">🔊</button>
+
+        <button id="fullscreenBtn" type="button">⛶</button>
+
+        <button id="exitFullscreenBtn" type="button" class="hidden">✕</button>
+
+    </div>
 
 </div>
 
@@ -643,7 +717,6 @@ allowfullscreen>
 </main>
 
 </div>
-
 
 <!-- ADMIN -->
 
@@ -663,7 +736,6 @@ Exit
 
 </header>
 
-
 <div class="container">
 
 <h1>
@@ -676,7 +748,6 @@ Content is stored online in Supabase.
 
 <div id="adminMsg"></div>
 
-
 <div style="margin:18px 0">
 
 <button id="studentsBtn"
@@ -685,7 +756,6 @@ class="btn secondary">
 </button>
 
 </div>
-
 
 <!-- STUDENTS -->
 
@@ -701,9 +771,7 @@ Students
 
 </div>
 
-
 <div class="adminGrid">
-
 
 <!-- SUBJECTS -->
 
@@ -733,7 +801,6 @@ style="margin-top:8px">
 
 </div>
 
-
 <!-- EDITOR -->
 
 <div class="card">
@@ -754,12 +821,11 @@ Select a subject.
 
 </section>
 
-
+<script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
 
 "use strict";
-
 
 /* =========================
    SUPABASE
@@ -771,13 +837,11 @@ const SUPABASE_URL =
 const SUPABASE_ANON_KEY =
 "sb_publishable_d6K-w7SB8KVHuT-CQgSK9A_ryXPqnS4";
 
-
 const sb =
 supabase.createClient(
 SUPABASE_URL,
 SUPABASE_ANON_KEY
 );
-
 
 /* =========================
    GLOBAL DATA
@@ -792,14 +856,12 @@ let currentTopic=null;
 let adminSubject=null;
 let adminOpen=false;
 
-
 /* =========================
    HELPERS
 ========================= */
 
 const $ =
 id=>document.getElementById(id);
-
 
 function uid(){
 
@@ -808,7 +870,6 @@ crypto.randomUUID():
 Date.now()+"_"+Math.random();
 
 }
-
 
 function esc(s){
 
@@ -824,7 +885,6 @@ c=>({
 );
 
 }
-
 
 /* =========================
    YOUTUBE ID
@@ -846,7 +906,6 @@ x.pathname
 .split("/")
 .filter(Boolean);
 
-
 /* youtu.be */
 
 if(host==="youtu.be"){
@@ -854,7 +913,6 @@ if(host==="youtu.be"){
 return path[0]||null;
 
 }
-
 
 /* youtube.com */
 
@@ -883,7 +941,6 @@ return null;
 
 }
 
-
 /* =========================
    MESSAGES
 ========================= */
@@ -900,7 +957,6 @@ ${esc(text)}
 
 }
 
-
 function adminMessage(text,success=false){
 
 $("adminMsg").innerHTML=text?
@@ -912,7 +968,6 @@ ${esc(text)}
 </div>`:"";
 
 }
-
 
 /* =========================
    VIEW
@@ -935,7 +990,6 @@ scrollTo(0,0);
 
 }
 
-
 /* =========================
    NORMALIZE DATABASE DATA
 ========================= */
@@ -944,7 +998,6 @@ function normalize(){
 
 if(!Array.isArray(site.subjects))
 site.subjects=[];
-
 
 site.subjects=
 site.subjects.map(s=>({
@@ -991,7 +1044,6 @@ v.url||""
 
 }
 
-
 /* =========================
    LOAD SITE
 ========================= */
@@ -1005,10 +1057,8 @@ await sb
 .eq("id",1)
 .maybeSingle();
 
-
 if(r.error)
 throw r.error;
-
 
 site=
 r.data?.data||{
@@ -1018,7 +1068,6 @@ subjects:[]
 normalize();
 
 }
-
 
 /* =========================
    OPEN STUDENT
@@ -1041,7 +1090,6 @@ view("homeView");
 
 }
 
-
 /* =========================
    OPEN ADMIN
 ========================= */
@@ -1059,7 +1107,6 @@ $("adminPage").classList.remove("hidden");
 renderAdminSubjects();
 
 }
-
 
 /* =========================
    AUTH
@@ -1081,7 +1128,6 @@ sessionStorage.removeItem(
 
 }
 
-
 /* =========================
    AUTH TABS
 ========================= */
@@ -1100,7 +1146,6 @@ message("");
 
 };
 
-
 $("adminTab").onclick=()=>{
 
 $("adminTab").classList.add("active");
@@ -1114,7 +1159,6 @@ $("adminAuth").classList.remove("hidden");
 message("");
 
 };
-
 
 /* =========================
    REGISTER / LOGIN SWITCH
@@ -1130,7 +1174,6 @@ message("");
 
 };
 
-
 $("toLogin").onclick=()=>{
 
 $("registerBox").classList.add("hidden");
@@ -1140,7 +1183,6 @@ $("loginBox").classList.remove("hidden");
 message("");
 
 };
-
 
 /* =========================
    REGISTER
@@ -1158,7 +1200,6 @@ $("regId").value.trim();
 let password=
 $("regPass").value;
 
-
 if(!name||!loginId||!password){
 
 return message(
@@ -1167,7 +1208,6 @@ return message(
 
 }
 
-
 if(password.length<6){
 
 return message(
@@ -1175,7 +1215,6 @@ return message(
 );
 
 }
-
 
 let r=
 await sb.rpc(
@@ -1187,7 +1226,6 @@ p_password:password
 }
 );
 
-
 if(r.error){
 
 return message(
@@ -1195,7 +1233,6 @@ r.error.message
 );
 
 }
-
 
 if(!r.data?.success){
 
@@ -1206,12 +1243,10 @@ r.data?.message||
 
 }
 
-
 message(
 "Account created. You can login now.",
 true
 );
-
 
 $("registerBox")
 .classList.add("hidden");
@@ -1226,7 +1261,6 @@ $("loginPass").value="";
 
 };
 
-
 /* =========================
    LOGIN
 ========================= */
@@ -1240,7 +1274,6 @@ $("loginId").value.trim();
 let password=
 $("loginPass").value;
 
-
 if(!loginId||!password){
 
 return message(
@@ -1248,7 +1281,6 @@ return message(
 );
 
 }
-
 
 let r=
 await sb.rpc(
@@ -1259,7 +1291,6 @@ p_password:password
 }
 );
 
-
 if(r.error){
 
 return message(
@@ -1267,7 +1298,6 @@ r.error.message
 );
 
 }
-
 
 if(!r.data?.success){
 
@@ -1277,7 +1307,6 @@ r.data?.message||
 );
 
 }
-
 
 let user={
 
@@ -1289,17 +1318,14 @@ id:r.data.id
 
 };
 
-
 localStorage.setItem(
 "studyhub_user",
 JSON.stringify(user)
 );
 
-
 openStudent(user);
 
 };
-
 
 /* =========================
    ADMIN LOGIN
@@ -1311,7 +1337,6 @@ async()=>{
 let password=
 $("adminPass").value;
 
-
 if(!password){
 
 return message(
@@ -1319,7 +1344,6 @@ return message(
 );
 
 }
-
 
 let r=
 await sb.rpc(
@@ -1329,7 +1353,6 @@ p_password:password
 }
 );
 
-
 if(r.error){
 
 return message(
@@ -1337,7 +1360,6 @@ r.error.message
 );
 
 }
-
 
 if(!r.data?.success){
 
@@ -1347,17 +1369,14 @@ return message(
 
 }
 
-
 sessionStorage.setItem(
 "studyhub_admin",
 "1"
 );
 
-
 openAdmin();
 
 };
-
 
 /* =========================
    LOGOUT
@@ -1365,7 +1384,6 @@ openAdmin();
 
 $("adminExit").onclick=
 openAuth;
-
 
 $("logoutBtn").onclick=()=>{
 
@@ -1379,7 +1397,6 @@ openAuth();
 
 };
 
-
 /* =========================
    SIDE MENU
 ========================= */
@@ -1392,13 +1409,11 @@ $("overlay").classList.add("show");
 
 };
 
-
 $("closeSide").onclick=
 closeSide;
 
 $("overlay").onclick=
 closeSide;
-
 
 function closeSide(){
 
@@ -1407,7 +1422,6 @@ $("side").classList.remove("open");
 $("overlay").classList.remove("show");
 
 }
-
 
 $("homeBtn").onclick=()=>{
 
@@ -1418,7 +1432,6 @@ renderSubjects();
 view("homeView");
 
 };
-
 
 /* =========================
    STUDENT SUBJECTS
@@ -1457,7 +1470,6 @@ style="grid-column:1/-1">
 No subjects yet.
 </div>`;
 
-
 $("subjects")
 .querySelectorAll("[data-id]")
 .forEach(card=>{
@@ -1468,7 +1480,6 @@ openTopics(card.dataset.id);
 });
 
 }
-
 
 /* =========================
    TOPICS
@@ -1483,10 +1494,8 @@ x=>x.id===id
 
 if(!currentSubject)return;
 
-
 $("topicTitle").textContent=
 currentSubject.name;
-
 
 $("topics").innerHTML=
 currentSubject.topics.map(t=>`
@@ -1515,7 +1524,6 @@ style="grid-column:1/-1">
 No chapters yet.
 </div>`;
 
-
 $("topics")
 .querySelectorAll("[data-id]")
 .forEach(card=>{
@@ -1525,11 +1533,9 @@ openVideos(card.dataset.id);
 
 });
 
-
 view("topicView");
 
 }
-
 
 /* =========================
    VIDEOS
@@ -1544,10 +1550,8 @@ x=>x.id===id
 
 if(!currentTopic)return;
 
-
 $("videoTitle").textContent=
 currentTopic.name;
-
 
 $("videos").innerHTML=
 currentTopic.videos.map(
@@ -1603,7 +1607,6 @@ style="grid-column:1/-1">
 No videos yet.
 </div>`;
 
-
 $("videos")
 .querySelectorAll("[data-i]")
 .forEach(button=>{
@@ -1615,34 +1618,185 @@ Number(button.dataset.i)
 
 });
 
-
 view("videoView");
 
 }
-
 
 /* =========================
    WATCH VIDEO
 ========================= */
 
+let ytPlayer = null;
+let muted = false;
+
 function openWatch(index){
 
-let video = currentTopic?.videos?.[index];
-let id = ytId(video?.url);
+    const video = currentTopic?.videos?.[index];
+    const id = ytId(video?.url);
 
-if(!video || !id) return;
+    if(!video || !id) return;
 
-$("watchTitle").textContent = video.title;
+    // Destroy the previous YouTube player instance cleanly.
+    try{
+        if(ytPlayer && typeof ytPlayer.destroy === "function"){
+            ytPlayer.destroy();
+        }
+    }catch(e){}
 
-$("player").src =
-"https://www.youtube-nocookie.com/embed/" +
-encodeURIComponent(id) +
-"?rel=0&playsinline=1&controls=1&fs=1";
+    ytPlayer = null;
+    muted = false;
 
-view("watchView");
+    $("watchTitle").textContent = video.title;
+    $("muteBtn").textContent = "🔊";
+    $("playPauseBtn").textContent = "▶";
 
+    // Load only the embedded player. Users cannot interact with the
+    // YouTube iframe directly because the iframe is pointer-blocked.
+    $("player").src =
+        "https://www.youtube-nocookie.com/embed/" +
+        encodeURIComponent(id) +
+        "?enablejsapi=1" +
+        "&rel=0" +
+        "&playsinline=1" +
+        "&controls=0" +
+        "&disablekb=1" +
+        "&iv_load_policy=3" +
+        "&modestbranding=1";
+
+    view("watchView");
+
+    // YouTube IFrame API loads asynchronously, so retry briefly until it exists.
+    const createPlayer = () => {
+        if(!document.getElementById("player")) return;
+
+        if(typeof YT !== "undefined" && YT.Player){
+            try{
+                ytPlayer = new YT.Player("player", {
+                    events:{
+                        onReady: function(){
+                            updatePlayButton();
+                        },
+                        onStateChange: function(){
+                            updatePlayButton();
+                        }
+                    }
+                });
+                return;
+            }catch(e){
+                console.error("YouTube player error:", e);
+            }
+        }
+
+        setTimeout(createPlayer, 300);
+    };
+
+    setTimeout(createPlayer, 250);
 }
 
+function updatePlayButton(){
+    if(!ytPlayer || typeof YT === "undefined") return;
+
+    try{
+        const state = ytPlayer.getPlayerState();
+        $("playPauseBtn").textContent =
+            state === YT.PlayerState.PLAYING ? "⏸" : "▶";
+    }catch(e){}
+}
+
+// Only these six controls are active on top of the video.
+$("playPauseBtn").onclick = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+
+    if(!ytPlayer) return;
+
+    try{
+        const state = ytPlayer.getPlayerState();
+        if(typeof YT !== "undefined" && state === YT.PlayerState.PLAYING){
+            ytPlayer.pauseVideo();
+        }else{
+            ytPlayer.playVideo();
+        }
+        setTimeout(updatePlayButton,150);
+    }catch(e){}
+};
+
+$("back10Btn").onclick = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+
+    if(!ytPlayer) return;
+
+    try{
+        const time = ytPlayer.getCurrentTime();
+        ytPlayer.seekTo(Math.max(0,time-10),true);
+    }catch(e){}
+};
+
+$("forward10Btn").onclick = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+
+    if(!ytPlayer) return;
+
+    try{
+        const time = ytPlayer.getCurrentTime();
+        ytPlayer.seekTo(time+10,true);
+    }catch(e){}
+};
+
+$("muteBtn").onclick = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+
+    if(!ytPlayer) return;
+
+    try{
+        if(muted){
+            ytPlayer.unMute();
+            $("muteBtn").textContent = "🔊";
+            muted = false;
+        }else{
+            ytPlayer.mute();
+            $("muteBtn").textContent = "🔇";
+            muted = true;
+        }
+    }catch(e){}
+};
+
+$("fullscreenBtn").onclick = async function(e){
+    e.preventDefault();
+    e.stopPropagation();
+
+    const box = $("customPlayer");
+
+    try{
+        if(box.requestFullscreen){
+            await box.requestFullscreen();
+        }else if(box.webkitRequestFullscreen){
+            box.webkitRequestFullscreen();
+        }
+    }catch(e){}
+};
+
+$("exitFullscreenBtn").onclick = function(e){
+    e.preventDefault();
+    e.stopPropagation();
+
+    try{
+        if(document.exitFullscreen){
+            document.exitFullscreen();
+        }else if(document.webkitExitFullscreen){
+            document.webkitExitFullscreen();
+        }
+    }catch(e){}
+};
+
+document.addEventListener("fullscreenchange",function(){
+    const full = !!document.fullscreenElement;
+    $("fullscreenBtn").classList.toggle("hidden",full);
+    $("exitFullscreenBtn").classList.toggle("hidden",!full);
+});
 
 /* =========================
    BACK BUTTONS
@@ -1654,13 +1808,11 @@ view("homeView");
 
 };
 
-
 $("videoBack").onclick=()=>{
 
 view("topicView");
 
 };
-
 
 $("watchBack").onclick=()=>{
 
@@ -1670,7 +1822,6 @@ view("videoView");
 
 };
 
-
 /* =========================
    ADMIN SAVE
 ========================= */
@@ -1678,7 +1829,6 @@ view("videoView");
 async function saveSite(){
 
 normalize();
-
 
 let r=
 await sb.rpc(
@@ -1688,10 +1838,8 @@ p_data:site
 }
 );
 
-
 if(r.error)
 throw r.error;
-
 
 if(!r.data?.success){
 
@@ -1703,7 +1851,6 @@ r.data?.message||
 }
 
 }
-
 
 /* =========================
    ADMIN SUBJECT LIST
@@ -1749,7 +1896,6 @@ data-remove="${esc(s.id)}"
 No subjects.
 </div>`;
 
-
 $("adminSubjects")
 .querySelectorAll("[data-manage]")
 .forEach(button=>{
@@ -1760,7 +1906,6 @@ button.dataset.manage
 );
 
 });
-
 
 $("adminSubjects")
 .querySelectorAll("[data-remove]")
@@ -1775,7 +1920,6 @@ button.dataset.remove
 
 }
 
-
 /* =========================
    ADD SUBJECT
 ========================= */
@@ -1786,9 +1930,7 @@ async()=>{
 let name=
 $("newSubject").value.trim();
 
-
 if(!name)return;
-
 
 site.subjects.push({
 
@@ -1801,7 +1943,6 @@ icon:"📚",
 topics:[]
 
 });
-
 
 try{
 
@@ -1826,7 +1967,6 @@ e.message
 
 };
 
-
 /* =========================
    MANAGE SUBJECT
 ========================= */
@@ -1840,15 +1980,12 @@ x=>x.id===id
 
 if(!adminSubject)return;
 
-
 $("editorTitle").textContent=
 "Manage: "+adminSubject.name;
-
 
 renderEditor();
 
 }
-
 
 /* =========================
    DELETE SUBJECT
@@ -1860,12 +1997,10 @@ if(!confirm(
 "Delete subject and all chapters/videos?"
 ))return;
 
-
 site.subjects=
 site.subjects.filter(
 x=>x.id!==id
 );
-
 
 try{
 
@@ -1891,7 +2026,6 @@ adminMessage(e.message);
 
 }
 
-
 /* =========================
    SUBJECT EDITOR
 ========================= */
@@ -1900,9 +2034,7 @@ function renderEditor(){
 
 let s=adminSubject;
 
-
 $("editor").className="";
-
 
 $("editor").innerHTML=`
 
@@ -1919,7 +2051,6 @@ value="${esc(s.name)}"
 
 </div>
 
-
 <div class="field">
 
 <label>
@@ -1933,7 +2064,6 @@ value="${esc(s.icon)}"
 
 </div>
 
-
 <button
 class="btn primary"
 id="saveSub"
@@ -1941,14 +2071,11 @@ id="saveSub"
 Save Subject
 </button>
 
-
 <hr>
-
 
 <h3>
 Chapters
 </h3>
-
 
 <div class="list">
 
@@ -1993,16 +2120,13 @@ No chapters.
 
 </div>
 
-
 <hr>
-
 
 <input
 id="newTopic"
 placeholder="Chapter name"
 style="width:100%;padding:11px;border:1px solid #e5e9f0;border-radius:9px"
 >
-
 
 <button
 class="btn primary"
@@ -2012,7 +2136,6 @@ id="addTopic"
 + Add Chapter
 </button>
 
-
 <div
 id="topicEditor"
 style="margin-top:18px"
@@ -2020,14 +2143,11 @@ style="margin-top:18px"
 
 `;
 
-
 $("saveSub").onclick=
 saveSubjectInfo;
 
-
 $("addTopic").onclick=
 addTopic;
-
 
 $("editor")
 .querySelectorAll("[data-topic]")
@@ -2039,7 +2159,6 @@ button.dataset.topic
 );
 
 });
-
 
 $("editor")
 .querySelectorAll("[data-delete-topic]")
@@ -2054,7 +2173,6 @@ button.dataset.deleteTopic
 
 }
 
-
 /* =========================
    SAVE SUBJECT
 ========================= */
@@ -2066,12 +2184,10 @@ $("subName").value.trim()
 ||
 adminSubject.name;
 
-
 adminSubject.icon=
 $("subIcon").value.trim()
 ||
 "📚";
-
 
 try{
 
@@ -2096,7 +2212,6 @@ e.message
 
 }
 
-
 /* =========================
    ADD CHAPTER
 ========================= */
@@ -2106,9 +2221,7 @@ async function addTopic(){
 let name=
 $("newTopic").value.trim();
 
-
 if(!name)return;
-
 
 adminSubject.topics.push({
 
@@ -2119,7 +2232,6 @@ name:name,
 videos:[]
 
 });
-
 
 try{
 
@@ -2142,7 +2254,6 @@ e.message
 
 }
 
-
 /* =========================
    DELETE CHAPTER
 ========================= */
@@ -2153,12 +2264,10 @@ if(!confirm(
 "Delete chapter and videos?"
 ))return;
 
-
 adminSubject.topics=
 adminSubject.topics.filter(
 x=>x.id!==id
 );
-
 
 try{
 
@@ -2176,7 +2285,6 @@ e.message
 
 }
 
-
 /* =========================
    MANAGE CHAPTER
 ========================= */
@@ -2188,9 +2296,7 @@ adminSubject.topics.find(
 x=>x.id===id
 );
 
-
 if(!topic)return;
-
 
 $("topicEditor").innerHTML=`
 
@@ -2199,7 +2305,6 @@ $("topicEditor").innerHTML=`
 <h3>
 ${esc(topic.name)}
 </h3>
-
 
 <div class="field">
 
@@ -2214,7 +2319,6 @@ value="${esc(topic.name)}"
 
 </div>
 
-
 <button
 class="btn secondary small"
 id="saveTopic"
@@ -2222,14 +2326,11 @@ id="saveTopic"
 Save Name
 </button>
 
-
 <hr>
-
 
 <h4>
 Videos
 </h4>
-
 
 <div class="list">
 
@@ -2263,14 +2364,11 @@ No videos.
 
 </div>
 
-
 <hr>
-
 
 <h4>
 Add YouTube Video
 </h4>
-
 
 <div class="field">
 
@@ -2285,7 +2383,6 @@ placeholder="Example: Narration Part 1"
 
 </div>
 
-
 <div class="field">
 
 <label>
@@ -2299,7 +2396,6 @@ placeholder="https://youtube.com/watch?v=..."
 
 </div>
 
-
 <button
 class="btn primary"
 id="addVideo"
@@ -2307,19 +2403,15 @@ id="addVideo"
 + Add Video
 </button>
 
-
 </div>
 
 `;
 
-
 $("saveTopic").onclick=
 ()=>saveTopic(id);
 
-
 $("addVideo").onclick=
 ()=>addVideo(id);
-
 
 $("topicEditor")
 .querySelectorAll("[data-video-delete]")
@@ -2337,7 +2429,6 @@ button.dataset.videoDelete
 
 }
 
-
 /* =========================
    SAVE CHAPTER
 ========================= */
@@ -2349,14 +2440,11 @@ adminSubject.topics.find(
 x=>x.id===id
 );
 
-
 let name=
 $("topicName").value.trim();
 
-
 if(name)
 topic.name=name;
-
 
 try{
 
@@ -2376,7 +2464,6 @@ e.message
 
 }
 
-
 /* =========================
    ADD VIDEO
 ========================= */
@@ -2388,14 +2475,11 @@ adminSubject.topics.find(
 x=>x.id===id
 );
 
-
 let title=
 $("videoName").value.trim();
 
-
 let url=
 $("videoUrl").value.trim();
-
 
 if(!title||!ytId(url)){
 
@@ -2407,7 +2491,6 @@ return;
 
 }
 
-
 topic.videos.push({
 
 id:uid(),
@@ -2417,7 +2500,6 @@ title:title,
 url:url
 
 });
-
 
 try{
 
@@ -2442,7 +2524,6 @@ e.message
 
 }
 
-
 /* =========================
    DELETE VIDEO
 ========================= */
@@ -2454,20 +2535,16 @@ adminSubject.topics.find(
 x=>x.id===id
 );
 
-
 if(!topic)return;
-
 
 if(!confirm(
 "Delete this video?"
 ))return;
 
-
 topic.videos.splice(
 index,
 1
 );
-
 
 try{
 
@@ -2487,7 +2564,6 @@ e.message
 
 }
 
-
 /* =========================
    STUDENT LIST
 ========================= */
@@ -2500,9 +2576,7 @@ prompt(
 "Enter admin password:"
 );
 
-
 if(!password)return;
-
 
 let r=
 await sb.rpc(
@@ -2512,7 +2586,6 @@ p_password:password
 }
 );
 
-
 if(r.error){
 
 return adminMessage(
@@ -2520,7 +2593,6 @@ r.error.message
 );
 
 }
-
 
 if(!r.data?.success){
 
@@ -2530,10 +2602,8 @@ return adminMessage(
 
 }
 
-
 $("studentsPanel")
 .classList.remove("hidden");
-
 
 let students=
 Array.isArray(
@@ -2541,7 +2611,6 @@ r.data.students
 )?
 r.data.students:
 [];
-
 
 $("students").innerHTML=
 students.map(s=>`
@@ -2592,7 +2661,6 @@ data-login="${esc(s.login_id)}"
 No students registered yet.
 </div>`;
 
-
 $("students")
 .querySelectorAll("[data-change]")
 .forEach(button=>{
@@ -2606,7 +2674,6 @@ button.dataset.login
 });
 
 };
-
 
 /* =========================
    CHANGE STUDENT PASSWORD
@@ -2622,9 +2689,7 @@ prompt(
 "New password for "+login
 );
 
-
 if(!newPassword)return;
-
 
 if(newPassword.length<6){
 
@@ -2636,15 +2701,12 @@ return;
 
 }
 
-
 let adminPassword=
 prompt(
 "Admin password"
 );
 
-
 if(!adminPassword)return;
-
 
 let r=
 await sb.rpc(
@@ -2656,7 +2718,6 @@ p_new_password:newPassword
 }
 );
 
-
 if(r.error){
 
 alert(
@@ -2666,7 +2727,6 @@ r.error.message
 return;
 
 }
-
 
 if(!r.data?.success){
 
@@ -2679,13 +2739,11 @@ return;
 
 }
 
-
 alert(
 "Password changed successfully."
 );
 
 }
-
 
 /* =========================
    REALTIME
@@ -2711,7 +2769,6 @@ subjects:[]
 
 normalize();
 
-
 if(
 !$("studentApp")
 .classList.contains("hidden")
@@ -2720,7 +2777,6 @@ if(
 renderSubjects();
 
 }
-
 
 if(adminOpen){
 
@@ -2733,7 +2789,6 @@ renderAdminSubjects();
 
 .subscribe();
 
-
 /* =========================
    START
 ========================= */
@@ -2744,7 +2799,6 @@ try{
 
 await loadSite();
 
-
 let user=
 JSON.parse(
 localStorage.getItem(
@@ -2752,7 +2806,6 @@ localStorage.getItem(
 )||
 "null"
 );
-
 
 if(user?.id){
 
@@ -2774,5 +2827,6 @@ error.message
 })();
 
 </script>
+
 </body>
 </html>
