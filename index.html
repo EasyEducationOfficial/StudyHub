@@ -1824,44 +1824,33 @@ $("watchBack").onclick=()=>{
    ADMIN SAVE
 ========================= */
 
-/* =========================
-   ADMIN SAVE QUEUE
-   - Keeps the backup code/player untouched.
-   - Every admin edit captures its own snapshot.
-   - Saves run one-by-one, so rapid multiple edits do not overwrite each other.
-========================= */
-let adminSaveQueue = Promise.resolve();
+async function saveSite(){
 
-function saveSite(){
+normalize();
 
-    normalize();
 
-    // Capture THIS exact edit before another edit can change `site`.
-    const snapshot = JSON.parse(JSON.stringify(site));
+let r=
+await sb.rpc(
+"admin_save_site",
+{
+p_data:site
+}
+);
 
-    const job = adminSaveQueue.then(async()=>{
 
-        const r = await sb.rpc(
-            "admin_save_site",
-            { p_data: snapshot }
-        );
+if(r.error)
+throw r.error;
 
-        if(r.error) throw r.error;
 
-        if(!r.data?.success){
-            throw new Error(
-                r.data?.message ||
-                "Could not save."
-            );
-        }
+if(!r.data?.success){
 
-        return r.data;
-    });
+throw new Error(
+r.data?.message||
+"Could not save."
+);
 
-    // Keep the queue alive even if one save fails.
-    adminSaveQueue = job.catch(()=>{});
+}
 
-    return job;
 }
 
 
