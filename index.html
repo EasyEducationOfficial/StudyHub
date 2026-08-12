@@ -349,12 +349,6 @@ button,input{font:inherit}
  font-size:12px
 }
 
-.save-state{
-  margin:10px 0 0;
-  font-size:12px;
-  color:#687386;
-}
-
 .empty{
  text-align:center;
  padding:28px;
@@ -781,7 +775,6 @@ Content is stored online in Supabase.
 </p>
 
 <div id="adminMsg"></div>
-<div id="adminSaveState" class="save-state" aria-live="polite"></div>
 
 
 <div style="margin:18px 0">
@@ -1732,122 +1725,81 @@ view("videoView");
 
 
 /* =========================
-   WATCH VIDEO
+   RESET PLAYER HELPER
 ========================= */
 
 let ytPlayer = null;
-let playerGeneration = 0;
-let playerCreateTimer = null;
 
-function destroyYoutubePlayer(){
-    playerGeneration++;
-
-    if(playerCreateTimer){
-        clearTimeout(playerCreateTimer);
-        playerCreateTimer = null;
-    }
-
+function resetPlayer(){
     if(ytPlayer){
-        try{
-            if(typeof ytPlayer.stopVideo === "function") ytPlayer.stopVideo();
-        }catch(e){}
-
-        try{
-            if(typeof ytPlayer.destroy === "function") ytPlayer.destroy();
-        }catch(e){}
-
+        try { ytPlayer.destroy(); } catch(e){}
         ytPlayer = null;
     }
-}
-
-function resetYoutubePlayerHost(){
+    
+    // পুরানো প্লেয়ার এলিমেন্ট রিমুভ করা
     const oldPlayer = $("player");
-    if(!oldPlayer) return;
-
-    // Always create a fresh DIV host. This prevents an old YouTube iframe/API
-    // instance from being reused when another video is opened.
-    const newHost = document.createElement("div");
-    newHost.id = "player";
-    newHost.setAttribute("aria-label", "YouTube video player");
-    oldPlayer.replaceWith(newHost);
+    if(oldPlayer){
+        oldPlayer.remove();
+    }
+    
+    // ফ্রেশ ফাঁকা <div> তৈরি করা (YouTube API এটিকেই প্লেয়ার বানিয়ে নেবে)
+    const container = $("customPlayer");
+    if(container){
+        const newDiv = document.createElement("div");
+        newDiv.id = "player";
+        container.insertBefore(newDiv, container.firstChild);
+    }
 }
+
+/* =========================
+   WATCH VIDEO
+========================= */
 
 function openWatch(index){
     const video = currentTopic?.videos?.[index];
     const id = ytId(video?.url);
     if(!video || !id) return;
 
-    // Completely invalidate the previous player before creating the next one.
-    destroyYoutubePlayer();
-    resetYoutubePlayerHost();
-
-    const validGeneration = playerGeneration;
-
-    muted = false;
-    progressDragging = false;
     $("watchTitle").textContent = video.title;
-    $("muteBtn").textContent = "🔊";
-    $("playPauseBtn").textContent = "▶";
-    $("progressBar").value = 0;
-    $("timeLabel").textContent = "0:00 / 0:00";
 
+    // ১. কন্টেইনার ফ্রেশ করা
+    resetPlayer();
+    
+    // ২. পেজ ভিউ চেঞ্জ করা
     view("watchView");
 
+    // ৩. YouTube Player API দিয়ে ভিডিও লোড করা
     let attempts = 0;
-
-    const create = () => {
-        if(validGeneration !== playerGeneration) return;
-        const host = $("player");
-        if(!host) return;
-
+    const createPlayer = () => {
         if(typeof YT !== "undefined" && YT.Player){
-            try{
-                ytPlayer = new YT.Player(host, {
+            try {
+                ytPlayer = new YT.Player("player", {
                     videoId: id,
-                    playerVars:{
-                        autoplay:0,
-                        rel:0,
-                        playsinline:1,
-                        controls:0,
-                        fs:0,
-                        disablekb:1,
-                        iv_load_policy:3,
-                        modestbranding:1,
-                        enablejsapi:1
+                    host: "https://www.youtube-nocookie.com",
+                    playerVars: {
+                        autoplay: 1,
+                        enablejsapi: 1,
+                        rel: 0,
+                        playsinline: 1,
+                        controls: 0,
+                        fs: 0,
+                        disablekb: 1,
+                        iv_load_policy: 3,
+                        modestbranding: 1,
+                        origin: window.location.origin
                     },
-                    events:{
-                        onReady:function(){
-                            if(validGeneration !== playerGeneration) return;
-                            updatePlayButton();
-                            updateProgress();
-                        },
-                        onStateChange:function(){
-                            if(validGeneration !== playerGeneration) return;
-                            updatePlayButton();
-                            updateProgress();
-                        },
-                        onError:function(event){
-                            if(validGeneration !== playerGeneration) return;
-                            console.warn("YouTube player error:", event?.data);
-                        }
+                    events: {
+                        onReady: function(){ updatePlayButton(); updateProgress(); },
+                        onStateChange: function(){ updatePlayButton(); updateProgress(); }
                     }
                 });
-                playerCreateTimer = null;
-                return;
-            }catch(e){
-                console.error("YouTube player error:", e);
-            }
+            } catch(e){}
+            return;
         }
-
-        if(++attempts < 40 && validGeneration === playerGeneration){
-            playerCreateTimer = setTimeout(create,250);
-        }else{
-            playerCreateTimer = null;
-        }
+        if(++attempts < 30) setTimeout(createPlayer, 250);
     };
 
-    // Let the watch view render before the API measures the player container.
-    requestAnimationFrame(create);
+    createPlayer();
 }
 
 /* =========================
@@ -1855,76 +1807,42 @@ function openWatch(index){
 ========================= */
 
 $("topicBack").onclick=()=>{
-
-view("homeView");
-
+    view("homeView");
 };
-
 
 $("videoBack").onclick=()=>{
-
-view("topicView");
-
+    view("topicView");
 };
 
-
 $("watchBack").onclick=()=>{
-
-    destroyYoutubePlayer();
-    resetYoutubePlayerHost();
-
-    $("progressBar").value = 0;
-    $("timeLabel").textContent = "0:00 / 0:00";
-    $("playPauseBtn").textContent = "▶";
-    $("muteBtn").textContent = "🔊";
-    muted = false;
-    progressDragging = false;
-
+    resetPlayer();
     view("videoView");
-
 };
 
 
 /* =========================
-   ADMIN SAVE — MULTI-CHANGE SAFE
+   ADMIN SAVE
 ========================= */
 
-// Multiple admin edits are queued instead of racing each other.
-// This prevents a later change from being overwritten by an earlier
-// request when several buttons are used without refreshing the page.
+/* =========================
+   ADMIN SAVE QUEUE
+   - Keeps the backup code/player untouched.
+   - Every admin edit captures its own snapshot.
+   - Saves run one-by-one, so rapid multiple edits do not overwrite each other.
+========================= */
 let adminSaveQueue = Promise.resolve();
-let adminSaveInProgress = false;
-let adminLocalDirty = false;
-let adminSaveSerial = 0;
 
-function cloneSiteData(data){
-    return JSON.parse(JSON.stringify(data));
-}
+function saveSite(){
 
-function updateAdminSaveStatus(text, success=false){
-    if($('adminSaveState')){
-        $('adminSaveState').textContent = text || '';
-        $('adminSaveState').style.color = success ? '#166534' : '#687386';
-    } else if($('adminMsg')){
-        $('adminMsg').innerHTML = text ?
-            `<div class="msg ${success ? 'success' : 'error'}">${esc(text)}</div>` : '';
-    }
-}
-
-function enqueueSiteSave(){
     normalize();
 
-    // Capture the exact current state at the moment this save is requested.
-    const snapshot = cloneSiteData(site);
-    const serial = ++adminSaveSerial;
-    adminLocalDirty = true;
+    // Capture THIS exact edit before another edit can change `site`.
+    const snapshot = JSON.parse(JSON.stringify(site));
 
-    const job = async()=>{
-        adminSaveInProgress = true;
-        updateAdminSaveStatus('Saving changes…');
+    const job = adminSaveQueue.then(async()=>{
 
         const r = await sb.rpc(
-            'admin_save_site',
+            "admin_save_site",
             { p_data: snapshot }
         );
 
@@ -1932,40 +1850,18 @@ function enqueueSiteSave(){
 
         if(!r.data?.success){
             throw new Error(
-                r.data?.message || 'Could not save.'
+                r.data?.message ||
+                "Could not save."
             );
         }
 
-        // Only the newest completed save clears the dirty state.
-        if(serial === adminSaveSerial){
-            adminLocalDirty = false;
-            updateAdminSaveStatus('All changes saved.', true);
-        }
-    };
-
-    // Always run saves in order. If several edits happen quickly, none can
-    // overwrite another because every request waits for the previous one.
-    const result = adminSaveQueue.then(job);
-
-    // Keep the queue alive after an error so the next edit can still save.
-    adminSaveQueue = result.catch(error=>{
-        if(serial === adminSaveSerial){
-            adminLocalDirty = false;
-            updateAdminSaveStatus(error?.message || 'Could not save.');
-        }
-        console.error('Admin save failed:', error);
-        throw error;
-    }).catch(()=>{});
-
-    return result.finally(()=>{
-        if(serial === adminSaveSerial){
-            adminSaveInProgress = false;
-        }
+        return r.data;
     });
-}
 
-async function saveSite(){
-    return enqueueSiteSave();
+    // Keep the queue alive even if one save fails.
+    adminSaveQueue = job.catch(()=>{});
+
+    return job;
 }
 
 
@@ -2967,34 +2863,29 @@ filter:"id=eq.1"
 },
 payload=>{
 
-// Do not let a delayed realtime event replace local admin edits while
-// a save is running or while there are still queued changes.
-if(adminOpen && (adminSaveInProgress || adminLocalDirty)){
-    return;
-}
-
-site =
-payload.new?.data ||
-{subjects:[]};
+site=
+payload.new?.data||
+{
+subjects:[]
+};
 
 normalize();
+
 
 if(
 !$("studentApp")
 .classList.contains("hidden")
 ){
-    renderSubjects();
+
+renderSubjects();
+
 }
 
+
 if(adminOpen){
-    renderAdminSubjects();
-    if(adminSubject){
-        const selectedId = adminSubject.id;
-        adminSubject = site.subjects.find(x=>x.id===selectedId) || null;
-        if(adminSubject){
-            renderEditor();
-        }
-    }
+
+renderAdminSubjects();
+
 }
 
 }
