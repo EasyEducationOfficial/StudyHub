@@ -1466,7 +1466,7 @@ localStorage.removeItem(
 "studyhub_user"
 );
 
-destroyYoutubePlayer();
+$("player").src="";
 
 openAuth();
 
@@ -1719,140 +1719,40 @@ view("videoView");
 ========================= */
 
 let ytPlayer = null;
-let youtubeReady = false;
-let currentYoutubeVideoId = null;
-let pendingYoutubeVideoId = null;
-let playerCreateTimer = null;
-
-/*
-   IMPORTANT PLAYER FIX
-   --------------------
-   The old version destroyed/replaced the iframe every time Back was pressed.
-   YouTube's IFrame API can keep the old iframe/API instance alive for a short
-   time, which caused this flow to break:
-
-   Video 1 -> Back -> Video 2
-
-   The fix is to create ONE YT.Player and reuse it with loadVideoById().
-   Back only stops the player; it does NOT destroy or replace the iframe.
-*/
-function destroyYoutubePlayer(){
-    if(playerCreateTimer){
-        clearTimeout(playerCreateTimer);
-        playerCreateTimer=null;
-    }
-
-    if(ytPlayer){
-        try{
-            if(typeof ytPlayer.stopVideo === "function") ytPlayer.stopVideo();
-        }catch(e){}
-    }
-
-    currentYoutubeVideoId=null;
-    pendingYoutubeVideoId=null;
-}
-
-function resetYoutubeControls(){
-    try{$("progressBar").value=0;}catch(e){}
-    try{$("timeLabel").textContent="0:00 / 0:00";}catch(e){}
-    try{$("playPauseBtn").textContent="▶";}catch(e){}
-    try{$("muteBtn").textContent="🔊";}catch(e){}
-    muted=false;
-    progressDragging=false;
-}
-
-function createYoutubePlayer(videoId){
-    pendingYoutubeVideoId=videoId;
-
-    if(typeof YT === "undefined" || !YT.Player){
-        if(!playerCreateTimer){
-            playerCreateTimer=setTimeout(()=>{
-                playerCreateTimer=null;
-                createYoutubePlayer(pendingYoutubeVideoId);
-            },250);
-        }
-        return;
-    }
-
-    const frame=$("player");
-    if(!frame) return;
-
-    if(ytPlayer){
-        try{
-            ytPlayer.loadVideoById(videoId);
-            currentYoutubeVideoId=videoId;
-            pendingYoutubeVideoId=null;
-            return;
-        }catch(e){
-            console.warn("Existing YouTube player could not load video:",e);
-            ytPlayer=null;
-        }
-    }
-
-    try{
-        ytPlayer=new YT.Player("player",{
-            videoId:videoId,
-            playerVars:{
-                autoplay:1,
-                rel:0,
-                playsinline:1,
-                controls:0,
-                fs:0,
-                disablekb:1,
-                iv_load_policy:3,
-                modestbranding:1,
-                origin:location.origin
-            },
-            events:{
-                onReady:function(event){
-                    currentYoutubeVideoId=videoId;
-                    pendingYoutubeVideoId=null;
-                    try{event.target.playVideo();}catch(e){}
-                    updatePlayButton();
-                    updateProgress();
-                },
-                onStateChange:function(event){
-                    updatePlayButton();
-                    updateProgress();
-                },
-                onError:function(event){
-                    console.warn("YouTube player error:",event.data);
-                }
-            }
-        });
-    }catch(e){
-        console.error("Could not create YouTube player:",e);
-        ytPlayer=null;
-        pendingYoutubeVideoId=videoId;
-    }
-}
 
 function openWatch(index){
-    const video=currentTopic?.videos?.[index];
-    const id=ytId(video?.url);
+    const video = currentTopic?.videos?.[index];
+    const id = ytId(video?.url);
     if(!video || !id) return;
 
-    /* Open the view FIRST so the player is visible when the API loads. */
-    $("watchTitle").textContent=video.title;
-    resetYoutubeControls();
-    view("watchView");
+    $("watchTitle").textContent = video.title;
 
-    /* Reuse the same YouTube API player instead of replacing the iframe. */
     if(ytPlayer){
-        try{
-            ytPlayer.loadVideoById(id);
-            currentYoutubeVideoId=id;
-            pendingYoutubeVideoId=null;
-            return;
-        }catch(e){
-            console.warn("Reloading existing player failed; recreating:",e);
-            try{ytPlayer.destroy();}catch(err){}
-            ytPlayer=null;
-            currentYoutubeVideoId=null;
-        }
+        try{ ytPlayer.destroy(); }catch(e){}
+        ytPlayer = null;
     }
 
-    createYoutubePlayer(id);
+    $("player").src =
+        "https://www.youtube-nocookie.com/embed/" +
+        encodeURIComponent(id) +
+        "?enablejsapi=1&rel=0&playsinline=1&controls=0&fs=0&disablekb=1&iv_load_policy=3&modestbranding=1";
+
+    view("watchView");
+
+    let attempts=0;
+    const create = () => {
+        if(typeof YT !== "undefined" && YT.Player){
+            ytPlayer = new YT.Player("player", {
+                events:{
+                    onReady: function(){ updatePlayButton(); updateProgress(); },
+                    onStateChange: function(){ updatePlayButton(); updateProgress(); }
+                }
+            });
+            return;
+        }
+        if(++attempts<30) setTimeout(create,250);
+    };
+    create();
 }
 
 /* =========================
@@ -1860,22 +1760,27 @@ function openWatch(index){
 ========================= */
 
 $("topicBack").onclick=()=>{
-    view("homeView");
+
+view("homeView");
+
 };
+
 
 $("videoBack").onclick=()=>{
-    view("topicView");
+
+view("topicView");
+
 };
+
 
 $("watchBack").onclick=()=>{
-    /* Stop playback, but keep the API player alive for the next video. */
-    if(ytPlayer){
-        try{ytPlayer.stopVideo();}catch(e){}
-    }
 
-    resetYoutubeControls();
-    view("videoView");
+$("player").src="";
+
+view("videoView");
+
 };
+
 
 /* =========================
    ADMIN SAVE
