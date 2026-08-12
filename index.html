@@ -374,17 +374,10 @@ button,input{font:inherit}
     width:100%;
 }
 
-.custom-player #player{
+.custom-player iframe{
     display:block;
     width:100%;
     aspect-ratio:16/9;
-    border:0;
-    min-height:0;
-}
-.custom-player #player iframe{
-    display:block;
-    width:100%;
-    height:100%;
     border:0;
     pointer-events:none !important;
 }
@@ -431,14 +424,10 @@ button,input{font:inherit}
     border-radius:0;
 }
 
-.custom-player:fullscreen #player{
+.custom-player:fullscreen iframe{
     width:100%;
     height:100%;
     aspect-ratio:auto;
-}
-.custom-player:fullscreen #player iframe{
-    width:100%;
-    height:100%;
 }
 
 .custom-player:fullscreen 
@@ -448,7 +437,7 @@ button,input{font:inherit}
 
 /* ===== PROFESSIONAL CUSTOM PLAYER ===== */
 .custom-player{position:relative;background:#000;border-radius:14px;overflow:hidden;width:100%;box-shadow:0 10px 35px rgba(0,0,0,.14)}
-.custom-player #player{display:block;width:100%;aspect-ratio:16/9;border:0;min-height:0}.custom-player #player iframe{display:block;width:100%;height:100%;border:0;pointer-events:none!important}
+.custom-player iframe{display:block;width:100%;aspect-ratio:16/9;border:0;pointer-events:none!important}
 .player-touch-block{position:absolute;inset:0;z-index:10;background:transparent;pointer-events:auto}
 .custom-controls{pointer-events:auto;position:absolute;left:0;right:0;bottom:0;z-index:30;display:flex;align-items:center;gap:7px;padding:38px 12px 11px;background:linear-gradient(transparent,rgba(0,0,0,.9))}
 .custom-controls button{border:0;background:rgba(0,0,0,.58);color:#fff;border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:700;line-height:1}
@@ -460,7 +449,7 @@ button,input{font:inherit}
 .progress::-moz-range-thumb{width:15px;height:15px;border:0;border-radius:50%;background:#fff}
 .time{min-width:84px;text-align:right;text-shadow:0 1px 3px #000}
 .custom-player:fullscreen{width:100vw;height:100vh;border-radius:0}
-.custom-player:fullscreen #player{width:100%;height:100%;aspect-ratio:auto}.custom-player:fullscreen #player iframe{width:100%;height:100%}
+.custom-player:fullscreen iframe{width:100%;height:100%;aspect-ratio:auto}
 .custom-player:fullscreen .custom-controls{bottom:0;padding-bottom:18px}
 .custom-player:fullscreen .progress-wrap{bottom:66px}
 @media(max-width:520px){.custom-controls{gap:4px;padding-left:8px;padding-right:8px}.custom-controls button{padding:8px 8px;font-size:12px}.progress-wrap{left:8px;right:8px}.time{min-width:72px;font-size:11px}}
@@ -713,7 +702,9 @@ Choose a subject to continue your study.
 <div class="card">
 
 <div class="custom-player" id="customPlayer">
-    <div id="player" aria-label="YouTube video player"></div>
+    <iframe id="player"
+        allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+        allowfullscreen></iframe>
 
     <div class="player-touch-block" id="playerTouchBlock" aria-hidden="true"></div>
 
@@ -1476,7 +1467,6 @@ localStorage.removeItem(
 );
 
 destroyYoutubePlayer();
-resetYoutubePlayerHost();
 
 openAuth();
 
@@ -1729,118 +1719,140 @@ view("videoView");
 ========================= */
 
 let ytPlayer = null;
-let playerGeneration = 0;
+let youtubeReady = false;
+let currentYoutubeVideoId = null;
+let pendingYoutubeVideoId = null;
 let playerCreateTimer = null;
 
-function destroyYoutubePlayer(){
-    playerGeneration++;
+/*
+   IMPORTANT PLAYER FIX
+   --------------------
+   The old version destroyed/replaced the iframe every time Back was pressed.
+   YouTube's IFrame API can keep the old iframe/API instance alive for a short
+   time, which caused this flow to break:
 
+   Video 1 -> Back -> Video 2
+
+   The fix is to create ONE YT.Player and reuse it with loadVideoById().
+   Back only stops the player; it does NOT destroy or replace the iframe.
+*/
+function destroyYoutubePlayer(){
     if(playerCreateTimer){
         clearTimeout(playerCreateTimer);
-        playerCreateTimer = null;
+        playerCreateTimer=null;
     }
 
     if(ytPlayer){
         try{
             if(typeof ytPlayer.stopVideo === "function") ytPlayer.stopVideo();
         }catch(e){}
+    }
 
+    currentYoutubeVideoId=null;
+    pendingYoutubeVideoId=null;
+}
+
+function resetYoutubeControls(){
+    try{$("progressBar").value=0;}catch(e){}
+    try{$("timeLabel").textContent="0:00 / 0:00";}catch(e){}
+    try{$("playPauseBtn").textContent="▶";}catch(e){}
+    try{$("muteBtn").textContent="🔊";}catch(e){}
+    muted=false;
+    progressDragging=false;
+}
+
+function createYoutubePlayer(videoId){
+    pendingYoutubeVideoId=videoId;
+
+    if(typeof YT === "undefined" || !YT.Player){
+        if(!playerCreateTimer){
+            playerCreateTimer=setTimeout(()=>{
+                playerCreateTimer=null;
+                createYoutubePlayer(pendingYoutubeVideoId);
+            },250);
+        }
+        return;
+    }
+
+    const frame=$("player");
+    if(!frame) return;
+
+    if(ytPlayer){
         try{
-            if(typeof ytPlayer.destroy === "function") ytPlayer.destroy();
-        }catch(e){}
+            ytPlayer.loadVideoById(videoId);
+            currentYoutubeVideoId=videoId;
+            pendingYoutubeVideoId=null;
+            return;
+        }catch(e){
+            console.warn("Existing YouTube player could not load video:",e);
+            ytPlayer=null;
+        }
+    }
 
-        ytPlayer = null;
+    try{
+        ytPlayer=new YT.Player("player",{
+            videoId:videoId,
+            playerVars:{
+                autoplay:1,
+                rel:0,
+                playsinline:1,
+                controls:0,
+                fs:0,
+                disablekb:1,
+                iv_load_policy:3,
+                modestbranding:1,
+                origin:location.origin
+            },
+            events:{
+                onReady:function(event){
+                    currentYoutubeVideoId=videoId;
+                    pendingYoutubeVideoId=null;
+                    try{event.target.playVideo();}catch(e){}
+                    updatePlayButton();
+                    updateProgress();
+                },
+                onStateChange:function(event){
+                    updatePlayButton();
+                    updateProgress();
+                },
+                onError:function(event){
+                    console.warn("YouTube player error:",event.data);
+                }
+            }
+        });
+    }catch(e){
+        console.error("Could not create YouTube player:",e);
+        ytPlayer=null;
+        pendingYoutubeVideoId=videoId;
     }
 }
 
-function resetYoutubePlayerHost(){
-    const oldPlayer = $("player");
-    if(!oldPlayer) return;
-
-    // Always create a fresh DIV host. This prevents an old YouTube iframe/API
-    // instance from being reused when another video is opened.
-    const newHost = document.createElement("div");
-    newHost.id = "player";
-    newHost.setAttribute("aria-label", "YouTube video player");
-    oldPlayer.replaceWith(newHost);
-}
-
 function openWatch(index){
-    const video = currentTopic?.videos?.[index];
-    const id = ytId(video?.url);
+    const video=currentTopic?.videos?.[index];
+    const id=ytId(video?.url);
     if(!video || !id) return;
 
-    // Completely invalidate the previous player before creating the next one.
-    destroyYoutubePlayer();
-    resetYoutubePlayerHost();
-
-    const validGeneration = playerGeneration;
-
-    muted = false;
-    progressDragging = false;
-    $("watchTitle").textContent = video.title;
-    $("muteBtn").textContent = "🔊";
-    $("playPauseBtn").textContent = "▶";
-    $("progressBar").value = 0;
-    $("timeLabel").textContent = "0:00 / 0:00";
-
+    /* Open the view FIRST so the player is visible when the API loads. */
+    $("watchTitle").textContent=video.title;
+    resetYoutubeControls();
     view("watchView");
 
-    let attempts = 0;
-
-    const create = () => {
-        if(validGeneration !== playerGeneration) return;
-        const host = $("player");
-        if(!host) return;
-
-        if(typeof YT !== "undefined" && YT.Player){
-            try{
-                ytPlayer = new YT.Player(host, {
-                    videoId: id,
-                    playerVars:{
-                        autoplay:0,
-                        rel:0,
-                        playsinline:1,
-                        controls:0,
-                        fs:0,
-                        disablekb:1,
-                        iv_load_policy:3,
-                        modestbranding:1,
-                        enablejsapi:1
-                    },
-                    events:{
-                        onReady:function(){
-                            if(validGeneration !== playerGeneration) return;
-                            updatePlayButton();
-                            updateProgress();
-                        },
-                        onStateChange:function(){
-                            if(validGeneration !== playerGeneration) return;
-                            updatePlayButton();
-                            updateProgress();
-                        },
-                        onError:function(event){
-                            if(validGeneration !== playerGeneration) return;
-                            console.warn("YouTube player error:", event?.data);
-                        }
-                    }
-                });
-                playerCreateTimer = null;
-                return;
-            }catch(e){
-                console.error("YouTube player error:", e);
-            }
+    /* Reuse the same YouTube API player instead of replacing the iframe. */
+    if(ytPlayer){
+        try{
+            ytPlayer.loadVideoById(id);
+            currentYoutubeVideoId=id;
+            pendingYoutubeVideoId=null;
+            return;
+        }catch(e){
+            console.warn("Reloading existing player failed; recreating:",e);
+            try{ytPlayer.destroy();}catch(err){}
+            ytPlayer=null;
+            currentYoutubeVideoId=null;
         }
+    }
 
-        if(++attempts < 40 && validGeneration === playerGeneration){
-            playerCreateTimer = setTimeout(create,250);
-        }else{
-            playerCreateTimer = null;
-        }
-    };
-
-    // Let the watch view render before the API measures the player container.
-    requestAnimationFrame(create);
+    createYoutubePlayer(id);
 }
 
 /* =========================
@@ -1848,35 +1860,22 @@ function openWatch(index){
 ========================= */
 
 $("topicBack").onclick=()=>{
-
-view("homeView");
-
+    view("homeView");
 };
-
 
 $("videoBack").onclick=()=>{
-
-view("topicView");
-
+    view("topicView");
 };
-
 
 $("watchBack").onclick=()=>{
+    /* Stop playback, but keep the API player alive for the next video. */
+    if(ytPlayer){
+        try{ytPlayer.stopVideo();}catch(e){}
+    }
 
-    destroyYoutubePlayer();
-    resetYoutubePlayerHost();
-
-    $("progressBar").value = 0;
-    $("timeLabel").textContent = "0:00 / 0:00";
-    $("playPauseBtn").textContent = "▶";
-    $("muteBtn").textContent = "🔊";
-    muted = false;
-    progressDragging = false;
-
+    resetYoutubeControls();
     view("videoView");
-
 };
-
 
 /* =========================
    ADMIN SAVE
