@@ -1725,10 +1725,33 @@ view("videoView");
 
 
 /* =========================
-   WATCH VIDEO
+   RESET PLAYER HELPER
 ========================= */
 
 let ytPlayer = null;
+
+function resetPlayer(){
+    if(ytPlayer){
+        try { ytPlayer.destroy(); } catch(e){}
+        ytPlayer = null;
+    }
+    const oldIframe = $("player");
+    if(oldIframe){
+        oldIframe.remove();
+    }
+    const container = $("customPlayer");
+    if(container){
+        const newIframe = document.createElement("iframe");
+        newIframe.id = "player";
+        newIframe.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+        newIframe.allowFullscreen = true;
+        container.insertBefore(newIframe, container.firstChild);
+    }
+}
+
+/* =========================
+   WATCH VIDEO
+========================= */
 
 function openWatch(index){
     const video = currentTopic?.videos?.[index];
@@ -1736,62 +1759,36 @@ function openWatch(index){
     if(!video || !id) return;
 
     $("watchTitle").textContent = video.title;
+
+    // ১. প্লেয়ার ও iframe একদম ফ্রেশ করে নেওয়া
+    resetPlayer();
+
+    // ২. নতুন iframe-এ ভিডিও URL সেট করা
+    const playerEl = $("player");
+    if(playerEl){
+        playerEl.src =
+            "https://www.youtube-nocookie.com/embed/" +
+            encodeURIComponent(id) +
+            "?enablejsapi=1&rel=0&playsinline=1&controls=0&fs=0&disablekb=1&iv_load_policy=3&modestbranding=1";
+    }
+
     view("watchView");
 
-    // Check if player iframe exists, create if missing
-    let playerEl = $("player");
-    if(!playerEl){
-        const container = $("customPlayer");
-        playerEl = document.createElement("iframe");
-        playerEl.id = "player";
-        playerEl.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
-        playerEl.allowFullscreen = true;
-        container.insertBefore(playerEl, container.firstChild);
-    }
-
-    // If ytPlayer is already initialized, just load the new video
-    if(ytPlayer && typeof ytPlayer.loadVideoById === 'function'){
-        try {
-            ytPlayer.loadVideoById(id);
-            updatePlayButton();
-            updateProgress();
-            return;
-        } catch(e){}
-    }
-
-    if(ytPlayer){
-        try{ ytPlayer.destroy(); }catch(e){}
-        ytPlayer = null;
-    }
-
-    // Re-check iframe after destroy
-    playerEl = $("player");
-    if(!playerEl){
-        const container = $("customPlayer");
-        playerEl = document.createElement("iframe");
-        playerEl.id = "player";
-        playerEl.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
-        playerEl.allowFullscreen = true;
-        container.insertBefore(playerEl, container.firstChild);
-    }
-
-    playerEl.src =
-        "https://www.youtube-nocookie.com/embed/" +
-        encodeURIComponent(id) +
-        "?enablejsapi=1&rel=0&playsinline=1&controls=0&fs=0&disablekb=1&iv_load_policy=3&modestbranding=1";
-
-    let attempts=0;
+    // ৩. YouTube API কানেক্ট করা
+    let attempts = 0;
     const create = () => {
         if(typeof YT !== "undefined" && YT.Player){
-            ytPlayer = new YT.Player("player", {
-                events:{
-                    onReady: function(){ updatePlayButton(); updateProgress(); },
-                    onStateChange: function(){ updatePlayButton(); updateProgress(); }
-                }
-            });
+            try {
+                ytPlayer = new YT.Player("player", {
+                    events:{
+                        onReady: function(){ updatePlayButton(); updateProgress(); },
+                        onStateChange: function(){ updatePlayButton(); updateProgress(); }
+                    }
+                });
+            } catch(e){}
             return;
         }
-        if(++attempts<30) setTimeout(create,250);
+        if(++attempts < 30) setTimeout(create, 250);
     };
     create();
 }
@@ -1809,11 +1806,8 @@ $("videoBack").onclick=()=>{
 };
 
 $("watchBack").onclick=()=>{
-    if(ytPlayer && typeof ytPlayer.stopVideo === 'function'){
-        try { ytPlayer.stopVideo(); } catch(e){}
-    }
-    const p = $("player");
-    if(p) p.src = "";
+    // ব্যাক বাটনে ক্লিক করলে প্লেয়ার ও iframe রিমুভ হয়ে যাবে
+    resetPlayer();
     view("videoView");
 };
 
