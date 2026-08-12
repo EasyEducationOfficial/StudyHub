@@ -1466,7 +1466,8 @@ localStorage.removeItem(
 "studyhub_user"
 );
 
-$("player").src="";
+destroyYoutubePlayer();
+resetYoutubeIframe();
 
 openAuth();
 
@@ -1719,39 +1720,110 @@ view("videoView");
 ========================= */
 
 let ytPlayer = null;
+let playerGeneration = 0;
+let playerCreateTimer = null;
+
+function destroyYoutubePlayer(){
+    playerGeneration++;
+
+    if(playerCreateTimer){
+        clearTimeout(playerCreateTimer);
+        playerCreateTimer = null;
+    }
+
+    if(ytPlayer){
+        try{
+            if(typeof ytPlayer.stopVideo === "function") ytPlayer.stopVideo();
+        }catch(e){}
+
+        try{
+            if(typeof ytPlayer.destroy === "function") ytPlayer.destroy();
+        }catch(e){}
+
+        ytPlayer = null;
+    }
+}
+
+function resetYoutubeIframe(){
+    const oldFrame = $("player");
+    if(!oldFrame) return;
+
+    // Replace the iframe itself so the previous YouTube IFrame API instance
+    // cannot remain attached to the next video.
+    const newFrame = oldFrame.cloneNode(false);
+    newFrame.id = "player";
+    newFrame.src = "about:blank";
+    oldFrame.replaceWith(newFrame);
+}
 
 function openWatch(index){
     const video = currentTopic?.videos?.[index];
     const id = ytId(video?.url);
     if(!video || !id) return;
 
+    const generation = playerGeneration + 1;
+    playerGeneration = generation;
+
+    destroyYoutubePlayer();
+
+    // destroyYoutubePlayer() increments the generation, so use the current
+    // value after destruction as the valid generation for this video.
+    const validGeneration = playerGeneration;
+
+    muted = false;
+    progressDragging = false;
     $("watchTitle").textContent = video.title;
+    $("muteBtn").textContent = "🔊";
+    $("playPauseBtn").textContent = "▶";
+    $("progressBar").value = 0;
+    $("timeLabel").textContent = "0:00 / 0:00";
 
-    if(ytPlayer){
-        try{ ytPlayer.destroy(); }catch(e){}
-        ytPlayer = null;
-    }
+    resetYoutubeIframe();
 
-    $("player").src =
+    const frame = $("player");
+    frame.src =
         "https://www.youtube-nocookie.com/embed/" +
         encodeURIComponent(id) +
         "?enablejsapi=1&rel=0&playsinline=1&controls=0&fs=0&disablekb=1&iv_load_policy=3&modestbranding=1";
 
     view("watchView");
 
-    let attempts=0;
+    let attempts = 0;
+
     const create = () => {
+        if(validGeneration !== playerGeneration) return;
+        if($("player") !== frame) return;
+
         if(typeof YT !== "undefined" && YT.Player){
-            ytPlayer = new YT.Player("player", {
-                events:{
-                    onReady: function(){ updatePlayButton(); updateProgress(); },
-                    onStateChange: function(){ updatePlayButton(); updateProgress(); }
-                }
-            });
-            return;
+            try{
+                ytPlayer = new YT.Player(frame, {
+                    events:{
+                        onReady: function(){
+                            if(validGeneration !== playerGeneration) return;
+                            updatePlayButton();
+                            updateProgress();
+                        },
+                        onStateChange: function(){
+                            if(validGeneration !== playerGeneration) return;
+                            updatePlayButton();
+                            updateProgress();
+                        }
+                    }
+                });
+                playerCreateTimer = null;
+                return;
+            }catch(e){
+                console.error("YouTube player error:", e);
+            }
         }
-        if(++attempts<30) setTimeout(create,250);
+
+        if(++attempts < 40 && validGeneration === playerGeneration){
+            playerCreateTimer = setTimeout(create,250);
+        }else{
+            playerCreateTimer = null;
+        }
     };
+
     create();
 }
 
@@ -1775,9 +1847,17 @@ view("topicView");
 
 $("watchBack").onclick=()=>{
 
-$("player").src="";
+    destroyYoutubePlayer();
+    resetYoutubeIframe();
 
-view("videoView");
+    $("progressBar").value = 0;
+    $("timeLabel").textContent = "0:00 / 0:00";
+    $("playPauseBtn").textContent = "▶";
+    $("muteBtn").textContent = "🔊";
+    muted = false;
+    progressDragging = false;
+
+    view("videoView");
 
 };
 
