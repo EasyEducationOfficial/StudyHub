@@ -1824,33 +1824,64 @@ $("watchBack").onclick=()=>{
    ADMIN SAVE
 ========================= */
 
+let saveQueue = [];
+let saveRunning = false;
+
 async function saveSite(){
 
-normalize();
+    normalize();
 
+    saveQueue.push(
+        JSON.parse(JSON.stringify(site))
+    );
 
-let r=
-await sb.rpc(
-"admin_save_site",
-{
-p_data:site
-}
-);
-
-
-if(r.error)
-throw r.error;
-
-
-if(!r.data?.success){
-
-throw new Error(
-r.data?.message||
-"Could not save."
-);
-
+    processSaveQueue();
 }
 
+async function processSaveQueue(){
+
+    if(saveRunning) return;
+
+    saveRunning = true;
+
+    while(saveQueue.length > 0){
+
+        const dataToSave = saveQueue.shift();
+
+        try{
+
+            let r = await sb.rpc(
+                "admin_save_site",
+                {
+                    p_data:dataToSave
+                }
+            );
+
+            if(r.error){
+                console.error(
+                    "Save error:",
+                    r.error
+                );
+            }
+
+            if(!r.data?.success){
+                console.error(
+                    "Save failed:",
+                    r.data?.message
+                );
+            }
+
+        }catch(e){
+
+            console.error(
+                "Save exception:",
+                e
+            );
+
+        }
+    }
+
+    saveRunning = false;
 }
 
 
