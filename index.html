@@ -374,10 +374,17 @@ button,input{font:inherit}
     width:100%;
 }
 
-.custom-player iframe{
+.custom-player #player{
     display:block;
     width:100%;
     aspect-ratio:16/9;
+    border:0;
+    min-height:0;
+}
+.custom-player #player iframe{
+    display:block;
+    width:100%;
+    height:100%;
     border:0;
     pointer-events:none !important;
 }
@@ -424,10 +431,14 @@ button,input{font:inherit}
     border-radius:0;
 }
 
-.custom-player:fullscreen iframe{
+.custom-player:fullscreen #player{
     width:100%;
     height:100%;
     aspect-ratio:auto;
+}
+.custom-player:fullscreen #player iframe{
+    width:100%;
+    height:100%;
 }
 
 .custom-player:fullscreen 
@@ -437,7 +448,7 @@ button,input{font:inherit}
 
 /* ===== PROFESSIONAL CUSTOM PLAYER ===== */
 .custom-player{position:relative;background:#000;border-radius:14px;overflow:hidden;width:100%;box-shadow:0 10px 35px rgba(0,0,0,.14)}
-.custom-player iframe{display:block;width:100%;aspect-ratio:16/9;border:0;pointer-events:none!important}
+.custom-player #player{display:block;width:100%;aspect-ratio:16/9;border:0;min-height:0}.custom-player #player iframe{display:block;width:100%;height:100%;border:0;pointer-events:none!important}
 .player-touch-block{position:absolute;inset:0;z-index:10;background:transparent;pointer-events:auto}
 .custom-controls{pointer-events:auto;position:absolute;left:0;right:0;bottom:0;z-index:30;display:flex;align-items:center;gap:7px;padding:38px 12px 11px;background:linear-gradient(transparent,rgba(0,0,0,.9))}
 .custom-controls button{border:0;background:rgba(0,0,0,.58);color:#fff;border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:700;line-height:1}
@@ -449,7 +460,7 @@ button,input{font:inherit}
 .progress::-moz-range-thumb{width:15px;height:15px;border:0;border-radius:50%;background:#fff}
 .time{min-width:84px;text-align:right;text-shadow:0 1px 3px #000}
 .custom-player:fullscreen{width:100vw;height:100vh;border-radius:0}
-.custom-player:fullscreen iframe{width:100%;height:100%;aspect-ratio:auto}
+.custom-player:fullscreen #player{width:100%;height:100%;aspect-ratio:auto}.custom-player:fullscreen #player iframe{width:100%;height:100%}
 .custom-player:fullscreen .custom-controls{bottom:0;padding-bottom:18px}
 .custom-player:fullscreen .progress-wrap{bottom:66px}
 @media(max-width:520px){.custom-controls{gap:4px;padding-left:8px;padding-right:8px}.custom-controls button{padding:8px 8px;font-size:12px}.progress-wrap{left:8px;right:8px}.time{min-width:72px;font-size:11px}}
@@ -702,9 +713,7 @@ Choose a subject to continue your study.
 <div class="card">
 
 <div class="custom-player" id="customPlayer">
-    <iframe id="player"
-        allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-        allowfullscreen></iframe>
+    <div id="player" aria-label="YouTube video player"></div>
 
     <div class="player-touch-block" id="playerTouchBlock" aria-hidden="true"></div>
 
@@ -1467,7 +1476,7 @@ localStorage.removeItem(
 );
 
 destroyYoutubePlayer();
-resetYoutubeIframe();
+resetYoutubePlayerHost();
 
 openAuth();
 
@@ -1744,16 +1753,16 @@ function destroyYoutubePlayer(){
     }
 }
 
-function resetYoutubeIframe(){
-    const oldFrame = $("player");
-    if(!oldFrame) return;
+function resetYoutubePlayerHost(){
+    const oldPlayer = $("player");
+    if(!oldPlayer) return;
 
-    // Replace the iframe itself so the previous YouTube IFrame API instance
-    // cannot remain attached to the next video.
-    const newFrame = oldFrame.cloneNode(false);
-    newFrame.id = "player";
-    newFrame.src = "about:blank";
-    oldFrame.replaceWith(newFrame);
+    // Always create a fresh DIV host. This prevents an old YouTube iframe/API
+    // instance from being reused when another video is opened.
+    const newHost = document.createElement("div");
+    newHost.id = "player";
+    newHost.setAttribute("aria-label", "YouTube video player");
+    oldPlayer.replaceWith(newHost);
 }
 
 function openWatch(index){
@@ -1761,13 +1770,10 @@ function openWatch(index){
     const id = ytId(video?.url);
     if(!video || !id) return;
 
-    const generation = playerGeneration + 1;
-    playerGeneration = generation;
-
+    // Completely invalidate the previous player before creating the next one.
     destroyYoutubePlayer();
+    resetYoutubePlayerHost();
 
-    // destroyYoutubePlayer() increments the generation, so use the current
-    // value after destruction as the valid generation for this video.
     const validGeneration = playerGeneration;
 
     muted = false;
@@ -1778,35 +1784,44 @@ function openWatch(index){
     $("progressBar").value = 0;
     $("timeLabel").textContent = "0:00 / 0:00";
 
-    resetYoutubeIframe();
-
-    const frame = $("player");
-    frame.src =
-        "https://www.youtube-nocookie.com/embed/" +
-        encodeURIComponent(id) +
-        "?enablejsapi=1&rel=0&playsinline=1&controls=0&fs=0&disablekb=1&iv_load_policy=3&modestbranding=1";
-
     view("watchView");
 
     let attempts = 0;
 
     const create = () => {
         if(validGeneration !== playerGeneration) return;
-        if($("player") !== frame) return;
+        const host = $("player");
+        if(!host) return;
 
         if(typeof YT !== "undefined" && YT.Player){
             try{
-                ytPlayer = new YT.Player(frame, {
+                ytPlayer = new YT.Player(host, {
+                    videoId: id,
+                    playerVars:{
+                        autoplay:0,
+                        rel:0,
+                        playsinline:1,
+                        controls:0,
+                        fs:0,
+                        disablekb:1,
+                        iv_load_policy:3,
+                        modestbranding:1,
+                        enablejsapi:1
+                    },
                     events:{
-                        onReady: function(){
+                        onReady:function(){
                             if(validGeneration !== playerGeneration) return;
                             updatePlayButton();
                             updateProgress();
                         },
-                        onStateChange: function(){
+                        onStateChange:function(){
                             if(validGeneration !== playerGeneration) return;
                             updatePlayButton();
                             updateProgress();
+                        },
+                        onError:function(event){
+                            if(validGeneration !== playerGeneration) return;
+                            console.warn("YouTube player error:", event?.data);
                         }
                     }
                 });
@@ -1824,7 +1839,8 @@ function openWatch(index){
         }
     };
 
-    create();
+    // Let the watch view render before the API measures the player container.
+    requestAnimationFrame(create);
 }
 
 /* =========================
@@ -1848,7 +1864,7 @@ view("topicView");
 $("watchBack").onclick=()=>{
 
     destroyYoutubePlayer();
-    resetYoutubeIframe();
+    resetYoutubePlayerHost();
 
     $("progressBar").value = 0;
     $("timeLabel").textContent = "0:00 / 0:00";
