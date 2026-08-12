@@ -1735,17 +1735,19 @@ function resetPlayer(){
         try { ytPlayer.destroy(); } catch(e){}
         ytPlayer = null;
     }
-    const oldIframe = $("player");
-    if(oldIframe){
-        oldIframe.remove();
+    
+    // পুরানো প্লেয়ার এলিমেন্ট রিমুভ করা
+    const oldPlayer = $("player");
+    if(oldPlayer){
+        oldPlayer.remove();
     }
+    
+    // ফ্রেশ ফাঁকা <div> তৈরি করা (YouTube API এটিকেই প্লেয়ার বানিয়ে নেবে)
     const container = $("customPlayer");
     if(container){
-        const newIframe = document.createElement("iframe");
-        newIframe.id = "player";
-        newIframe.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
-        newIframe.allowFullscreen = true;
-        container.insertBefore(newIframe, container.firstChild);
+        const newDiv = document.createElement("div");
+        newDiv.id = "player";
+        container.insertBefore(newDiv, container.firstChild);
     }
 }
 
@@ -1760,27 +1762,33 @@ function openWatch(index){
 
     $("watchTitle").textContent = video.title;
 
-    // ১. প্লেয়ার ও iframe একদম ফ্রেশ করে নেওয়া
+    // ১. কন্টেইনার ফ্রেশ করা
     resetPlayer();
-
-    // ২. নতুন iframe-এ ভিডিও URL সেট করা
-    const playerEl = $("player");
-    if(playerEl){
-        playerEl.src =
-            "https://www.youtube-nocookie.com/embed/" +
-            encodeURIComponent(id) +
-            "?enablejsapi=1&rel=0&playsinline=1&controls=0&fs=0&disablekb=1&iv_load_policy=3&modestbranding=1";
-    }
-
+    
+    // ২. পেজ ভিউ চেঞ্জ করা
     view("watchView");
 
-    // ৩. YouTube API কানেক্ট করা
+    // ৩. YouTube Player API দিয়ে ভিডিও লোড করা
     let attempts = 0;
-    const create = () => {
+    const createPlayer = () => {
         if(typeof YT !== "undefined" && YT.Player){
             try {
                 ytPlayer = new YT.Player("player", {
-                    events:{
+                    videoId: id,
+                    host: "https://www.youtube-nocookie.com",
+                    playerVars: {
+                        autoplay: 1,
+                        enablejsapi: 1,
+                        rel: 0,
+                        playsinline: 1,
+                        controls: 0,
+                        fs: 0,
+                        disablekb: 1,
+                        iv_load_policy: 3,
+                        modestbranding: 1,
+                        origin: window.location.origin
+                    },
+                    events: {
                         onReady: function(){ updatePlayButton(); updateProgress(); },
                         onStateChange: function(){ updatePlayButton(); updateProgress(); }
                     }
@@ -1788,9 +1796,10 @@ function openWatch(index){
             } catch(e){}
             return;
         }
-        if(++attempts < 30) setTimeout(create, 250);
+        if(++attempts < 30) setTimeout(createPlayer, 250);
     };
-    create();
+
+    createPlayer();
 }
 
 /* =========================
@@ -1806,10 +1815,10 @@ $("videoBack").onclick=()=>{
 };
 
 $("watchBack").onclick=()=>{
-    // ব্যাক বাটনে ক্লিক করলে প্লেয়ার ও iframe রিমুভ হয়ে যাবে
     resetPlayer();
     view("videoView");
 };
+
 
 /* =========================
    ADMIN SAVE
