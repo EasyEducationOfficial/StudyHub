@@ -465,6 +465,49 @@ button,input{font:inherit}
 .custom-player:fullscreen .progress-wrap{bottom:66px}
 @media(max-width:520px){.custom-controls{gap:4px;padding-left:8px;padding-right:8px}.custom-controls button{padding:8px 8px;font-size:12px}.progress-wrap{left:8px;right:8px}.time{min-width:72px;font-size:11px}}
 
+
+/* ===== PROFESSIONAL ASK ANYTHING / SUPPORT CHAT ===== */
+.support-actions{display:flex;gap:10px;align-items:center;margin-top:18px;flex-wrap:wrap}
+.support-btn{position:relative;display:inline-flex;align-items:center;gap:8px;padding:12px 16px;border:0;border-radius:12px;background:#2563eb;color:#fff;font-weight:800;cursor:pointer;box-shadow:0 8px 22px rgba(37,99,235,.18)}
+.bell-btn{position:relative;width:42px;height:42px;border:1px solid #e5e9f0;background:#fff;border-radius:12px;cursor:pointer;font-size:19px}
+.unread-dot{position:absolute;right:5px;top:5px;width:9px;height:9px;background:#ef4444;border:2px solid #fff;border-radius:50%;display:none}
+.unread-dot.show{display:block}
+.support-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.support-head .back{margin:0}
+.support-title{font-size:22px;font-weight:850}
+.support-status{font-size:12px;color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;padding:6px 9px;border-radius:999px;margin-left:auto}
+.chat-card{padding:0;overflow:hidden;display:flex;flex-direction:column;height:min(68vh,650px);min-height:480px}
+.chat-top{padding:16px 18px;border-bottom:1px solid #edf0f4;background:#fff}
+.chat-top strong{display:block}
+.chat-top span{font-size:12px;color:#687386}
+.chat-messages{flex:1;overflow-y:auto;padding:18px;background:#f7f9fc;display:flex;flex-direction:column;gap:10px}
+.bubble-row{display:flex;width:100%}
+.bubble-row.student{justify-content:flex-end}
+.bubble{max-width:min(78%,620px);padding:10px 13px;border-radius:16px;background:#fff;border:1px solid #e5e9f0;box-shadow:0 2px 8px rgba(15,23,42,.04);white-space:pre-wrap;overflow-wrap:anywhere}
+.bubble-row.student .bubble{background:#2563eb;color:#fff;border-color:#2563eb;border-bottom-right-radius:5px}
+.bubble-row.admin .bubble{border-bottom-left-radius:5px}
+.bubble-time{font-size:10px;opacity:.65;margin-top:5px;text-align:right}
+.chat-compose{display:flex;gap:9px;padding:12px;border-top:1px solid #edf0f4;background:#fff}
+.chat-compose textarea{flex:1;resize:none;min-height:44px;max-height:110px;padding:11px 12px;border:1px solid #e5e9f0;border-radius:12px;outline:0}
+.chat-compose textarea:focus{border-color:#9bb7ff;box-shadow:0 0 0 3px #2563eb12}
+.chat-send{width:48px;border:0;border-radius:12px;background:#2563eb;color:#fff;font-weight:900;cursor:pointer}
+.support-list{display:grid;gap:9px}
+.support-thread{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid #e5e9f0;border-radius:13px;background:#fff;cursor:pointer}
+.support-thread:hover{border-color:#b9ccff;background:#fafdff}
+.thread-avatar{width:40px;height:40px;border-radius:50%;background:#eaf1ff;color:#2563eb;display:grid;place-items:center;font-weight:850;flex:none}
+.thread-main{min-width:0;flex:1}
+.thread-main strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thread-last{font-size:12px;color:#687386;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.thread-meta{text-align:right;flex:none}
+.thread-unread{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:#ef4444;color:#fff;font-size:11px;font-weight:800}
+.admin-chat-wrap{margin-top:18px}
+@media(max-width:520px){
+ .support-status{margin-left:0}
+ .chat-card{min-height:58vh;height:65vh}
+ .bubble{max-width:86%}
+ .chat-compose{padding:9px}
+}
+
 </style>
 </head>
 
@@ -598,6 +641,8 @@ Open Admin Panel
 Easy<b>Education</b>
 </div>
 
+<button id="bellBtn" class="bell-btn" title="Messages" aria-label="Messages">🔔<span id="unreadDot" class="unread-dot"></span></button>
+
 <div id="avatar" class="avatar">
 S
 </div>
@@ -653,6 +698,11 @@ What do you want to learn?
 Choose a subject to continue your study.
 </p>
 
+</div>
+
+<div class="support-actions">
+  <button id="askAnythingBtn" class="support-btn">💬 Ask Anything</button>
+  <button id="homeBellBtn" class="bell-btn" title="Admin replies" aria-label="Admin replies">🔔<span id="homeUnreadDot" class="unread-dot"></span></button>
 </div>
 
 <div id="subjects" class="grid3"></div>
@@ -740,6 +790,28 @@ Choose a subject to continue your study.
 
 </section>
 
+<!-- SUPPORT CHAT -->
+<section id="supportView" class="hidden">
+  <div class="container">
+    <div class="support-head">
+      <button id="supportBack" class="back">← Home</button>
+      <div class="support-title">Ask Anything</div>
+      <div class="support-status">● Admin will answer within one day</div>
+    </div>
+    <div class="card chat-card">
+      <div class="chat-top">
+        <strong>Easy Education Support</strong>
+        <span>Ask your question here. Our admin will reply as soon as possible.</span>
+      </div>
+      <div id="studentChatMessages" class="chat-messages"></div>
+      <div class="chat-compose">
+        <textarea id="studentChatInput" maxlength="2000" placeholder="Write your message..."></textarea>
+        <button id="studentSendBtn" class="chat-send" aria-label="Send">➤</button>
+      </div>
+    </div>
+  </div>
+</section>
+
 </main>
 
 </div>
@@ -784,6 +856,29 @@ class="btn secondary">
 👥 Students
 </button>
 
+<button id="supportMessagesBtn" class="btn secondary">💬 Support Messages</button>
+
+</div>
+
+<div id="supportAdminPanel" class="card hidden" style="margin-bottom:18px">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+    <div>
+      <h2 style="margin:0">Support Messages</h2>
+      <p class="muted" style="margin:5px 0 0">Student questions and admin replies.</p>
+    </div>
+    <button id="supportRefreshBtn" class="btn secondary small">↻ Refresh</button>
+  </div>
+  <div id="supportAdminList" class="support-list" style="margin-top:15px"></div>
+  <div id="adminSupportChat" class="admin-chat-wrap hidden">
+    <div class="support-head"><button id="adminSupportBack" class="back">← Conversations</button><div id="adminSupportTitle" class="support-title">Conversation</div></div>
+    <div class="card chat-card">
+      <div id="adminChatMessages" class="chat-messages"></div>
+      <div class="chat-compose">
+        <textarea id="adminChatInput" maxlength="2000" placeholder="Write a reply..."></textarea>
+        <button id="adminSendBtn" class="chat-send" aria-label="Send reply">➤</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 
@@ -1026,7 +1121,8 @@ function view(id){
 "homeView",
 "topicView",
 "videoView",
-"watchView"
+"watchView",
+"supportView"
 ].forEach(x=>
 $(x).classList.add("hidden")
 );
@@ -1138,6 +1234,7 @@ $("avatar").textContent=
 (user.name||"S")[0].toUpperCase();
 
 renderSubjects();
+  refreshStudentUnread();
 
 view("homeView");
 
@@ -2867,6 +2964,198 @@ alert(
 }
 
 
+
+/* =========================
+   ASK ANYTHING / SUPPORT CHAT
+========================= */
+
+let supportStudentId = null;
+let supportAdminPassword = null;
+let supportAdminStudentId = null;
+
+function currentStudent(){
+  try{return JSON.parse(localStorage.getItem("studyhub_user")||"null")}catch(e){return null}
+}
+
+function formatSupportTime(v){
+  try{return new Date(v).toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});}
+  catch(e){return "";}
+}
+
+function setUnreadDot(show){
+  $("unreadDot")?.classList.toggle("show",!!show);
+  $("homeUnreadDot")?.classList.toggle("show",!!show);
+}
+
+async function refreshStudentUnread(){
+  const user=currentStudent();
+  if(!user?.id)return;
+  const r=await sb.rpc("support_unread_count",{p_student_id:String(user.id)});
+  if(!r.error) setUnreadDot(Number(r.data?.count||0)>0);
+}
+
+function renderSupportMessages(messages, targetId){
+  const box=$(targetId);
+  if(!box)return;
+  if(!messages?.length){
+    box.innerHTML='<div class="empty">No messages yet. Ask anything — we are here to help.</div>';
+    return;
+  }
+  box.innerHTML=messages.map(m=>`
+    <div class="bubble-row ${m.sender_role==="student"?"student":"admin"}">
+      <div class="bubble">
+        <div>${esc(m.message)}</div>
+        <div class="bubble-time">${formatSupportTime(m.created_at)}</div>
+      </div>
+    </div>
+  `).join("");
+  box.scrollTop=box.scrollHeight;
+}
+
+async function loadStudentSupport(){
+  const user=currentStudent();
+  if(!user?.id)return;
+  supportStudentId=String(user.id);
+  const r=await sb.rpc("support_get_messages",{p_student_id:supportStudentId});
+  if(r.error)return console.error(r.error);
+  renderSupportMessages(r.data?.messages||[],"studentChatMessages");
+  await sb.rpc("support_mark_student_read",{p_student_id:supportStudentId});
+  setUnreadDot(false);
+}
+
+function openSupportChat(){
+  const user=currentStudent();
+  if(!user?.id)return;
+  supportStudentId=String(user.id);
+  view("supportView");
+  loadStudentSupport();
+  setTimeout(()=>$("studentChatInput")?.focus(),100);
+}
+
+async function sendStudentSupport(){
+  const user=currentStudent();
+  const input=$("studentChatInput");
+  const msg=input.value.trim();
+  if(!user?.id||!msg)return;
+  const btn=$("studentSendBtn");
+  btn.disabled=true;
+  const r=await sb.rpc("support_send_message",{
+    p_student_id:String(user.id),
+    p_message:msg
+  });
+  btn.disabled=false;
+  if(r.error){alert(r.error.message);return;}
+  if(!r.data?.success){alert(r.data?.message||"Could not send message.");return;}
+  input.value="";
+  await loadStudentSupport();
+}
+
+$("askAnythingBtn").onclick=openSupportChat;
+$("bellBtn").onclick=openSupportChat;
+$("homeBellBtn").onclick=openSupportChat;
+$("supportBack").onclick=()=>{renderSubjects();view("homeView");};
+$("studentSendBtn").onclick=sendStudentSupport;
+$("studentChatInput").addEventListener("keydown",e=>{
+  if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendStudentSupport();}
+});
+
+
+/* ADMIN SUPPORT */
+
+async function adminPassword(){
+  if(supportAdminPassword)return supportAdminPassword;
+  const p=prompt("Enter admin password:");
+  if(!p)return null;
+  supportAdminPassword=p;
+  return p;
+}
+
+async function loadAdminSupportThreads(){
+  const pass=await adminPassword();
+  if(!pass)return;
+  const r=await sb.rpc("support_admin_threads",{p_admin_password:pass});
+  if(r.error){supportAdminPassword=null;adminMessage(r.error.message);return;}
+  if(!r.data?.success){
+    supportAdminPassword=null;
+    adminMessage(r.data?.message||"Wrong admin password.");
+    return;
+  }
+
+  $("supportAdminPanel").classList.remove("hidden");
+  $("adminSupportChat").classList.add("hidden");
+
+  const threads=r.data.threads||[];
+  $("supportAdminList").innerHTML=threads.length?threads.map(t=>`
+    <div class="support-thread" data-support-student="${esc(t.student_id)}">
+      <div class="thread-avatar">👤</div>
+      <div class="thread-main">
+        <strong>Student ${esc(t.student_id)}</strong>
+        <div class="thread-last">${esc(t.last_message||"No messages")}</div>
+      </div>
+      <div class="thread-meta">
+        ${Number(t.unread_count||0)>0?`<span class="thread-unread">${Number(t.unread_count)}</span>`:""}
+        <div class="muted" style="font-size:10px;margin-top:4px">${formatSupportTime(t.updated_at)}</div>
+      </div>
+    </div>
+  `).join(""):'<div class="empty">No student messages yet.</div>';
+
+  $("supportAdminList").querySelectorAll("[data-support-student]").forEach(el=>{
+    el.onclick=()=>openAdminSupportChat(el.dataset.supportStudent);
+  });
+}
+
+async function openAdminSupportChat(studentId){
+  const pass=await adminPassword();
+  if(!pass)return;
+  supportAdminStudentId=String(studentId);
+  const r=await sb.rpc("support_admin_get_messages",{
+    p_admin_password:pass,
+    p_student_id:supportAdminStudentId
+  });
+  if(r.error){adminMessage(r.error.message);return;}
+  if(!r.data?.success){adminMessage(r.data?.message||"Could not open conversation.");return;}
+
+  $("adminSupportPanel").classList.remove("hidden");
+  $("adminSupportChat").classList.remove("hidden");
+  $("adminSupportTitle").textContent="Student "+supportAdminStudentId;
+  renderSupportMessages(r.data.messages||[],"adminChatMessages");
+
+  await sb.rpc("support_admin_mark_read",{
+    p_admin_password:pass,
+    p_student_id:supportAdminStudentId
+  });
+}
+
+async function sendAdminSupport(){
+  const pass=await adminPassword();
+  const input=$("adminChatInput");
+  const msg=input.value.trim();
+  if(!pass||!supportAdminStudentId||!msg)return;
+
+  const btn=$("adminSendBtn");
+  btn.disabled=true;
+  const r=await sb.rpc("support_admin_reply",{
+    p_admin_password:pass,
+    p_student_id:supportAdminStudentId,
+    p_message:msg
+  });
+  btn.disabled=false;
+
+  if(r.error){alert(r.error.message);return;}
+  if(!r.data?.success){alert(r.data?.message||"Could not send reply.");return;}
+
+  input.value="";
+  await openAdminSupportChat(supportAdminStudentId);
+}
+
+$("supportMessagesBtn").onclick=loadAdminSupportThreads;
+$("supportRefreshBtn").onclick=loadAdminSupportThreads;
+$("adminSupportBack").onclick=loadAdminSupportThreads;
+$("adminSendBtn").onclick=sendAdminSupport;
+$("adminChatInput").addEventListener("keydown",e=>{
+  if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendAdminSupport();}
+});
+
 /* =========================
    REALTIME
 ========================= */
@@ -2911,6 +3200,33 @@ renderAdminSubjects();
 }
 )
 
+.on("postgres_changes",{
+  event:"INSERT",
+  schema:"public",
+  table:"support_messages"
+},async payload=>{
+  const m=payload.new;
+  const user=currentStudent();
+
+  if(user?.id && String(m.student_id)===String(user.id)){
+    if(m.sender_role==="admin"){
+      setUnreadDot(true);
+      if(!$("supportView").classList.contains("hidden")){
+        await loadStudentSupport();
+      }
+    }else if(!$("supportView").classList.contains("hidden")){
+      await loadStudentSupport();
+    }
+  }
+
+  if(adminOpen && supportAdminPassword){
+    if(supportAdminStudentId && String(m.student_id)===String(supportAdminStudentId)){
+      await openAdminSupportChat(supportAdminStudentId);
+    }else if(!$("supportAdminPanel").classList.contains("hidden")){
+      await loadAdminSupportThreads();
+    }
+  }
+})
 .subscribe();
 
 
