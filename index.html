@@ -492,7 +492,7 @@ button,input{font:inherit}
 .chat-compose textarea:focus{border-color:#9bb7ff;box-shadow:0 0 0 3px #2563eb12}
 .chat-send{width:48px;border:0;border-radius:12px;background:#2563eb;color:#fff;font-weight:900;cursor:pointer}
 .support-list{display:grid;gap:9px}
-.support-thread{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid #e5e9f0;border-radius:13px;background:#fff;cursor:pointer}
+.support-thread{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid #e5e9f0;border-radius:13px;background:#fff;cursor:pointer;position:relative;z-index:5;pointer-events:auto;touch-action:manipulation}
 .support-thread:hover{border-color:#b9ccff;background:#fafdff}
 .thread-avatar{width:40px;height:40px;border-radius:50%;background:#eaf1ff;color:#2563eb;display:grid;place-items:center;font-weight:850;flex:none}
 .thread-main{min-width:0;flex:1}
@@ -3123,7 +3123,8 @@ async function openAdminSupportChat(studentId){
   if(r.error){adminMessage(r.error.message);return;}
   if(!r.data?.success){adminMessage(r.data?.message||"Could not open conversation.");return;}
 
-  $("adminSupportPanel").classList.remove("hidden");
+  $("supportAdminPanel").classList.remove("hidden");
+  $("supportAdminList").classList.add("hidden");
   $("adminSupportChat").classList.remove("hidden");
   $("adminSupportTitle").textContent="Student "+supportAdminStudentId;
   renderSupportMessages(r.data.messages||[],"adminChatMessages");
@@ -3159,7 +3160,12 @@ async function sendAdminSupport(){
 
 $("supportMessagesBtn").onclick=loadAdminSupportThreads;
 $("supportRefreshBtn").onclick=loadAdminSupportThreads;
-$("adminSupportBack").onclick=loadAdminSupportThreads;
+$("adminSupportBack").onclick=async()=>{
+  $("adminSupportChat").classList.add("hidden");
+  $("supportAdminList").classList.remove("hidden");
+  supportAdminStudentId=null;
+  await loadAdminSupportThreads();
+};
 $("adminSendBtn").onclick=sendAdminSupport;
 $("adminChatInput").addEventListener("keydown",e=>{
   if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendAdminSupport();}
