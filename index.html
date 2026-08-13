@@ -1552,6 +1552,8 @@ sessionStorage.setItem(
 "1"
 );
 
+// Keep the already verified admin password in memory for support RPC calls.
+supportAdminPassword = password;
 
 openAdmin();
 
@@ -3063,11 +3065,9 @@ $("studentChatInput").addEventListener("keydown",e=>{
 /* ADMIN SUPPORT */
 
 async function adminPassword(){
-  if(supportAdminPassword)return supportAdminPassword;
-  const p=prompt("Enter admin password:");
-  if(!p)return null;
-  supportAdminPassword=p;
-  return p;
+  // The admin password was already verified during Admin Login.
+  // Do not ask for it again when opening a support conversation.
+  return supportAdminPassword;
 }
 
 async function loadAdminSupportThreads(){
@@ -3100,7 +3100,15 @@ async function loadAdminSupportThreads(){
   `).join(""):'<div class="empty">No student messages yet.</div>';
 
   $("supportAdminList").querySelectorAll("[data-support-student]").forEach(el=>{
+    el.setAttribute("role","button");
+    el.setAttribute("tabindex","0");
     el.onclick=()=>openAdminSupportChat(el.dataset.supportStudent);
+    el.onkeydown=(e)=>{
+      if(e.key==="Enter"||e.key===" "){
+        e.preventDefault();
+        openAdminSupportChat(el.dataset.supportStudent);
+      }
+    };
   });
 }
 
@@ -3119,6 +3127,7 @@ async function openAdminSupportChat(studentId){
   $("adminSupportChat").classList.remove("hidden");
   $("adminSupportTitle").textContent="Student "+supportAdminStudentId;
   renderSupportMessages(r.data.messages||[],"adminChatMessages");
+  setTimeout(()=>$("adminChatInput")?.focus(),100);
 
   await sb.rpc("support_admin_mark_read",{
     p_admin_password:pass,
