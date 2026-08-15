@@ -448,7 +448,9 @@ button,input{font:inherit}
 
 /* ===== PROFESSIONAL CUSTOM PLAYER ===== */
 .custom-player{position:relative;background:#000;border-radius:14px;overflow:hidden;width:100%;box-shadow:0 10px 35px rgba(0,0,0,.14)}
-.custom-player #player{display:block;width:100%;aspect-ratio:16/9;border:0;min-height:0}.custom-player #player iframe{display:block;width:100%;height:100%;border:0;pointer-events:none!important}
+.custom-player #player{display:block;width:100%;aspect-ratio:16/9;border:0;min-height:0}
+.custom-player video#player{width:100%;height:auto;aspect-ratio:16/9;object-fit:contain;background:#000;display:block;border:0}
+.custom-player video#player::-webkit-media-controls{display:none!important}.custom-player #player iframe{display:block;width:100%;height:100%;border:0;pointer-events:none!important}
 .player-touch-block{position:absolute;inset:0;z-index:10;background:transparent;pointer-events:auto}
 .custom-controls{pointer-events:auto;position:absolute;left:0;right:0;bottom:0;z-index:30;display:flex;align-items:center;gap:7px;padding:38px 12px 11px;background:linear-gradient(transparent,rgba(0,0,0,.9))}
 .custom-controls button{border:0;background:rgba(0,0,0,.58);color:#fff;border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:700;line-height:1}
@@ -1082,29 +1084,21 @@ return null;
 
 
 function driveId(url){
+    try{
+        const raw = String(url || "").trim();
 
-try{
+        // Google Drive: /file/d/FILE_ID/view
+        let m = raw.match(/drive\.google\.com\/file\/d\/([^/?#]+)/i);
+        if(m) return m[1];
 
-let x=new URL(url.trim());
+        // Google Drive: /open?id=FILE_ID or any URL with ?id=FILE_ID
+        m = raw.match(/[?&]id=([^&#]+)/i);
+        if(m) return m[1];
 
-let host=x.hostname.replace(/^www\./,"").toLowerCase();
-let path=x.pathname.split("/").filter(Boolean);
-
-if(host==="drive.google.com"){
-
-// https://drive.google.com/file/d/FILE_ID/view
-let i=path.indexOf("d");
-if(i!==-1 && path[i+1]) return path[i+1];
-
-// https://drive.google.com/open?id=FILE_ID
-return x.searchParams.get("id");
-
-}
-
-}catch(e){}
-
-return null;
-
+        // Also accept a direct Drive file ID
+        if(/^[A-Za-z0-9_-]{10,}$/.test(raw)) return raw;
+    }catch(e){}
+    return null;
 }
 
 function videoType(video){
@@ -1873,32 +1867,49 @@ view("videoView");
 ========================= */
 
 let ytPlayer = null;
+let driveMedia = null;
+let currentPlayerType = null;
 
 function resetPlayer(){
     if(ytPlayer){
         try { ytPlayer.destroy(); } catch(e){}
         ytPlayer = null;
     }
-    
-    // পুরানো প্লেয়ার এলিমেন্ট রিমুভ করা
-    const oldPlayer = $("player");
-    if(oldPlayer){
-        oldPlayer.remove();
+
+    if(driveMedia){
+        try{
+            driveMedia.pause();
+            driveMedia.removeAttribute("src");
+            driveMedia.load();
+        }catch(e){}
+        driveMedia = null;
     }
-    
-    // ফ্রেশ ফাঁকা <div> তৈরি করা (YouTube API এটিকেই প্লেয়ার বানিয়ে নেবে)
+
+    currentPlayerType = null;
+
+    const oldPlayer = $("player");
+    if(oldPlayer) oldPlayer.remove();
+
     const container = $("customPlayer");
     if(container){
         const controls = container.querySelector(".custom-controls");
         const progressWrap = container.querySelector(".progress-wrap");
         const touchBlock = container.querySelector(".player-touch-block");
+
         if(controls) controls.style.display="";
         if(progressWrap) progressWrap.style.display="";
         if(touchBlock) touchBlock.style.display="";
+
         const newDiv = document.createElement("div");
         newDiv.id = "player";
+        newDiv.setAttribute("aria-label","Video player");
         container.insertBefore(newDiv, container.firstChild);
     }
+
+    $("muteBtn").textContent="🔊";
+    $("playPauseBtn").textContent="▶";
+    $("progressBar").value=0;
+    $("timeLabel").textContent="0:00 / 0:00";
 }
 
 /* =========================
@@ -1907,108 +1918,144 @@ function resetPlayer(){
 
 function openWatch(index){
 
-const video = currentTopic?.videos?.[index];
-const type = videoType(video);
+    const video = currentTopic?.videos?.[index];
+    const type = videoType(video);
 
-if(!video || !type) return;
+    if(!video || !type) return;
 
-$("watchTitle").textContent = video.title;
+    $("watchTitle").textContent = video.title;
 
-resetPlayer();
+    resetPlayer();
 
-const controls = document.querySelector(".custom-controls");
-const progressWrap = document.querySelector(".progress-wrap");
-const touchBlock = $("playerTouchBlock");
+    const controls = document.querySelector(".custom-controls");
+    const progressWrap = document.querySelector(".progress-wrap");
+    const touchBlock = $("playerTouchBlock");
 
-view("watchView");
+    view("watchView");
 
-if(type==="drive"){
+    /* =========================
+       GOOGLE DRIVE HTML5 PLAYER
+       ========================= */
+    if(type==="drive"){
 
-// Google Drive preview player. The file must be shared as "Anyone with the link".
-const id = driveId(video.url);
+        const id = driveId(video.url);
+        if(!id) return;
 
-const player = $("player");
+        currentPlayerType = "drive";
 
-if(controls) controls.style.display="none";
-if(progressWrap) progressWrap.style.display="none";
-if(touchBlock) touchBlock.style.display="none";
+        if(controls) controls.style.display="flex";
+        if(progressWrap) progressWrap.style.display="flex";
+        if(touchBlock) touchBlock.style.display="block";
 
-player.style.pointerEvents="auto";
-player.innerHTML = `
-<iframe
-src="https://drive.google.com/file/d/${encodeURIComponent(id)}/preview"
-allow="autoplay; fullscreen"
-allowfullscreen
-loading="lazy"
-title="${esc(video.title)}">
-</iframe>
-`;
+        const host = $("player");
 
-return;
+        // Use Drive's download endpoint as the media source.
+        // The file must be shared as "Anyone with the link -> Viewer".
+        const media = document.createElement("video");
+        media.id = "player";
+        media.setAttribute("playsinline","");
+        media.setAttribute("preload","metadata");
+        media.setAttribute("disablepictureinpicture","");
+        media.setAttribute("controlslist","nodownload noplaybackrate");
+        media.setAttribute("aria-label", video.title);
+        media.src = "https://drive.google.com/uc?export=download&id=" + encodeURIComponent(id);
+
+        host.replaceWith(media);
+        driveMedia = media;
+
+        media.addEventListener("loadedmetadata",()=>{
+            updatePlayButton();
+            updateProgress();
+        });
+
+        media.addEventListener("durationchange",updateProgress);
+        media.addEventListener("timeupdate",updateProgress);
+        media.addEventListener("play",updatePlayButton);
+        media.addEventListener("pause",updatePlayButton);
+        media.addEventListener("ended",updatePlayButton);
+        media.addEventListener("volumechange",()=>{
+            $("muteBtn").textContent = media.muted ? "🔇" : "🔊";
+        });
+
+        media.addEventListener("error",()=>{
+            console.error("Google Drive video could not be loaded.", media.error);
+            $("timeLabel").textContent="Drive video could not load";
+        });
+
+        // Try autoplay. Browser may block it; user can press Play.
+        media.play().catch(()=>{});
+        updatePlayButton();
+        updateProgress();
+
+        return;
+    }
+
+    /* =========================
+       YOUTUBE PLAYER
+       ========================= */
+
+    currentPlayerType = "youtube";
+
+    if(controls) controls.style.display="flex";
+    if(progressWrap) progressWrap.style.display="flex";
+    if(touchBlock) touchBlock.style.display="block";
+
+    const id = ytId(video.url);
+    let attempts = 0;
+
+    const createPlayer = () => {
+
+        if(typeof YT !== "undefined" && YT.Player){
+
+            try {
+
+                ytPlayer = new YT.Player("player", {
+
+                    videoId:id,
+
+                    host:"https://www.youtube-nocookie.com",
+
+                    playerVars:{
+                        autoplay:1,
+                        enablejsapi:1,
+                        rel:0,
+                        playsinline:1,
+                        controls:0,
+                        fs:0,
+                        disablekb:1,
+                        iv_load_policy:3,
+                        modestbranding:1,
+                        origin:window.location.origin
+                    },
+
+                    events:{
+                        onReady:function(){
+                            updatePlayButton();
+                            updateProgress();
+                        },
+                        onStateChange:function(){
+                            updatePlayButton();
+                            updateProgress();
+                        }
+                    }
+
+                });
+
+            }catch(e){
+                console.error(e);
+            }
+
+            return;
+        }
+
+        if(++attempts<30)
+            setTimeout(createPlayer,250);
+
+    };
+
+    createPlayer();
+
 }
-
-// YouTube player
-const id = ytId(video.url);
-
-if(controls) controls.style.display="";
-if(progressWrap) progressWrap.style.display="";
-if(touchBlock) touchBlock.style.display="";
-
-let attempts = 0;
-
-const createPlayer = () => {
-
-if(typeof YT !== "undefined" && YT.Player){
-
-try {
-
-ytPlayer = new YT.Player("player", {
-
-videoId:id,
-
-host:"https://www.youtube-nocookie.com",
-
-playerVars:{
-autoplay:1,
-enablejsapi:1,
-rel:0,
-playsinline:1,
-controls:0,
-fs:0,
-disablekb:1,
-iv_load_policy:3,
-modestbranding:1,
-origin:window.location.origin
-},
-
-events:{
-onReady:function(){
-updatePlayButton();
-updateProgress();
-},
-onStateChange:function(){
-updatePlayButton();
-updateProgress();
-}
-}
-
-});
-
-}catch(e){}
-
-return;
-
-}
-
-if(++attempts<30)
-setTimeout(createPlayer,250);
-
-};
-
-createPlayer();
-
-}
-
 /* =========================
    BACK BUTTONS
 ========================= */
@@ -3431,7 +3478,7 @@ document.addEventListener("keydown", function(e){
 });
 </script>
 <script>
-/* ===== CUSTOM YOUTUBE CONTROLS ===== */
+/* ===== CUSTOM VIDEO CONTROLS: YOUTUBE + GOOGLE DRIVE ===== */
 let controlTimer=null;
 let progressDragging=false;
 
@@ -3443,78 +3490,159 @@ function formatTime(seconds){
     return h ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
 }
 
+function hasMedia(){
+    return currentPlayerType==="drive" && driveMedia;
+}
+
 function updatePlayButton(){
-    if(!ytPlayer || typeof YT==='undefined') return;
-    const state=ytPlayer.getPlayerState();
-    $("playPauseBtn").textContent=state===YT.PlayerState.PLAYING ? "⏸" : "▶";
+    if(currentPlayerType==="drive" && driveMedia){
+        $("playPauseBtn").textContent=driveMedia.paused ? "▶" : "⏸";
+        return;
+    }
+
+    if(currentPlayerType==="youtube" && ytPlayer && typeof YT!=="undefined"){
+        const state=ytPlayer.getPlayerState();
+        $("playPauseBtn").textContent=state===YT.PlayerState.PLAYING ? "⏸" : "▶";
+    }
+}
+
+function getDuration(){
+    if(currentPlayerType==="drive" && driveMedia)
+        return Number.isFinite(driveMedia.duration) ? driveMedia.duration : 0;
+
+    if(currentPlayerType==="youtube" && ytPlayer)
+        return ytPlayer.getDuration()||0;
+
+    return 0;
+}
+
+function getCurrentTime(){
+    if(currentPlayerType==="drive" && driveMedia)
+        return driveMedia.currentTime||0;
+
+    if(currentPlayerType==="youtube" && ytPlayer)
+        return ytPlayer.getCurrentTime()||0;
+
+    return 0;
+}
+
+function seekTo(seconds){
+    seconds=Math.max(0,seconds);
+
+    if(currentPlayerType==="drive" && driveMedia){
+        try{ driveMedia.currentTime=seconds; }catch(e){}
+        return;
+    }
+
+    if(currentPlayerType==="youtube" && ytPlayer){
+        ytPlayer.seekTo(seconds,true);
+    }
 }
 
 function updateProgress(){
-    if(!ytPlayer || progressDragging) return;
-    try{
-        const duration=ytPlayer.getDuration()||0;
-        const current=ytPlayer.getCurrentTime()||0;
-        $("progressBar").value=duration ? Math.round((current/duration)*1000) : 0;
-        $("timeLabel").textContent=`${formatTime(current)} / ${formatTime(duration)}`;
-    }catch(e){}
+    if(progressDragging) return;
+
+    const duration=getDuration();
+    const current=getCurrentTime();
+
+    $("progressBar").value=duration ? Math.round((current/duration)*1000) : 0;
+    $("timeLabel").textContent=`${formatTime(current)} / ${formatTime(duration)}`;
 }
 
-function stopControlEvent(e){e.preventDefault();e.stopPropagation();}
+function stopControlEvent(e){
+    e.preventDefault();
+    e.stopPropagation();
+}
 
 $("playPauseBtn").onclick=function(e){
     stopControlEvent(e);
-    if(!ytPlayer) return;
-    const state=ytPlayer.getPlayerState();
-    if(state===YT.PlayerState.PLAYING) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
-    setTimeout(updatePlayButton,120);
+
+    if(currentPlayerType==="drive" && driveMedia){
+        if(driveMedia.paused) driveMedia.play().catch(()=>{});
+        else driveMedia.pause();
+
+        setTimeout(updatePlayButton,80);
+        return;
+    }
+
+    if(currentPlayerType==="youtube" && ytPlayer){
+        const state=ytPlayer.getPlayerState();
+        if(state===YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
+        else ytPlayer.playVideo();
+
+        setTimeout(updatePlayButton,120);
+    }
 };
 
 $("back10Btn").onclick=function(e){
     stopControlEvent(e);
-    if(!ytPlayer) return;
-    ytPlayer.seekTo(Math.max(0,ytPlayer.getCurrentTime()-10),true);
-    setTimeout(updateProgress,100);
+    seekTo(getCurrentTime()-10);
+    setTimeout(updateProgress,80);
 };
 
 $("forward10Btn").onclick=function(e){
     stopControlEvent(e);
-    if(!ytPlayer) return;
-    const duration=ytPlayer.getDuration()||Infinity;
-    ytPlayer.seekTo(Math.min(duration,ytPlayer.getCurrentTime()+10),true);
-    setTimeout(updateProgress,100);
+    const duration=getDuration();
+    seekTo(Math.min(duration||Infinity,getCurrentTime()+10));
+    setTimeout(updateProgress,80);
 };
 
 $("muteBtn").onclick=function(e){
     stopControlEvent(e);
-    if(!ytPlayer) return;
-    if(ytPlayer.isMuted()){ytPlayer.unMute();$("muteBtn").textContent="🔊";}
-    else{ytPlayer.mute();$("muteBtn").textContent="🔇";}
+
+    if(currentPlayerType==="drive" && driveMedia){
+        driveMedia.muted=!driveMedia.muted;
+        $("muteBtn").textContent=driveMedia.muted ? "🔇" : "🔊";
+        return;
+    }
+
+    if(currentPlayerType==="youtube" && ytPlayer){
+        if(ytPlayer.isMuted()){
+            ytPlayer.unMute();
+            $("muteBtn").textContent="🔊";
+        }else{
+            ytPlayer.mute();
+            $("muteBtn").textContent="🔇";
+        }
+    }
 };
 
 $("progressBar").addEventListener("pointerdown",function(e){
     e.stopPropagation();
     progressDragging=true;
 });
+
 $("progressBar").addEventListener("input",function(e){
     e.stopPropagation();
-    if(!ytPlayer) return;
-    const duration=ytPlayer.getDuration()||0;
+
+    const duration=getDuration();
     const value=Number(this.value)/1000;
+
     $("timeLabel").textContent=`${formatTime(duration*value)} / ${formatTime(duration)}`;
 });
+
 $("progressBar").addEventListener("change",function(e){
     e.stopPropagation();
-    if(!ytPlayer) return;
-    const duration=ytPlayer.getDuration()||0;
-    ytPlayer.seekTo(duration*(Number(this.value)/1000),true);
+
+    const duration=getDuration();
+
+    if(duration){
+        seekTo(duration*(Number(this.value)/1000));
+    }
+
     progressDragging=false;
-    setTimeout(updateProgress,100);
+    setTimeout(updateProgress,80);
 });
-$("progressBar").addEventListener("pointerup",function(){progressDragging=false;});
+
+$("progressBar").addEventListener("pointerup",function(){
+    progressDragging=false;
+});
 
 $("fullscreenBtn").onclick=async function(e){
     stopControlEvent(e);
+
     const box=$("customPlayer");
+
     try{
         if(box.requestFullscreen) await box.requestFullscreen();
         else if(box.webkitRequestFullscreen) box.webkitRequestFullscreen();
@@ -3523,35 +3651,43 @@ $("fullscreenBtn").onclick=async function(e){
 
 $("exitFullscreenBtn").onclick=function(e){
     stopControlEvent(e);
+
     try{
-        if(document.exitFullscreen) awaitExit();
+        if(document.exitFullscreen) document.exitFullscreen();
         else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
     }catch(err){}
 };
-function awaitExit(){ return document.exitFullscreen(); }
 
 document.addEventListener("fullscreenchange",function(){
     const full=!!document.fullscreenElement;
+
     $("fullscreenBtn").classList.toggle("hidden",full);
     $("exitFullscreenBtn").classList.toggle("hidden",!full);
 });
 
 const playerBlock=$("playerTouchBlock");
+
 if(playerBlock){
     ["click","dblclick","pointerdown","pointerup","touchstart","touchend","mousedown","mouseup","contextmenu","wheel"].forEach(type=>{
-        playerBlock.addEventListener(type,function(e){e.preventDefault();e.stopPropagation();},{passive:false});
+        playerBlock.addEventListener(type,function(e){
+            e.preventDefault();
+            e.stopPropagation();
+        },{passive:false});
     });
 }
 
 $("customPlayer").addEventListener("click",function(e){
     if(!e.target.closest(".custom-controls") && !e.target.closest(".progress-wrap")){
-        e.preventDefault();e.stopPropagation();
+        e.preventDefault();
+        e.stopPropagation();
     }
 },true);
 
 clearInterval(controlTimer);
-controlTimer=setInterval(()=>{updatePlayButton();updateProgress();},250);
-</script>
+controlTimer=setInterval(()=>{
+    updatePlayButton();
+    updateProgress();
+},250);</script>
 
 </body>
 </html>
