@@ -1081,6 +1081,42 @@ return null;
 }
 
 
+function driveId(url){
+
+try{
+
+let x=new URL(url.trim());
+
+let host=x.hostname.replace(/^www\./,"").toLowerCase();
+let path=x.pathname.split("/").filter(Boolean);
+
+if(host==="drive.google.com"){
+
+// https://drive.google.com/file/d/FILE_ID/view
+let i=path.indexOf("d");
+if(i!==-1 && path[i+1]) return path[i+1];
+
+// https://drive.google.com/open?id=FILE_ID
+return x.searchParams.get("id");
+
+}
+
+}catch(e){}
+
+return null;
+
+}
+
+function videoType(video){
+
+if(video?.source==="drive") return "drive";
+if(video?.source==="youtube") return "youtube";
+
+return ytId(video?.url) ? "youtube" : (driveId(video?.url) ? "drive" : null);
+
+}
+
+
 /* =========================
    MESSAGES
 ========================= */
@@ -1179,7 +1215,11 @@ v.title||"Video"
 
 url:String(
 v.url||""
-)
+),
+
+source:
+v.source==="drive" ? "drive" :
+"youtube"
 
 })):[ ]
 
@@ -1756,6 +1796,8 @@ currentTopic.videos.map(
 (v,i)=>{
 
 let y=ytId(v.url);
+let d=driveId(v.url);
+let type=videoType(v);
 
 return`
 
@@ -1769,6 +1811,9 @@ y?
 src="https://img.youtube.com/vi/${encodeURIComponent(y)}/hqdefault.jpg"
 alt=""
 >`
+:
+d?
+`<div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:42px">📁</div>`
 :""
 }
 
@@ -1844,6 +1889,12 @@ function resetPlayer(){
     // ফ্রেশ ফাঁকা <div> তৈরি করা (YouTube API এটিকেই প্লেয়ার বানিয়ে নেবে)
     const container = $("customPlayer");
     if(container){
+        const controls = container.querySelector(".custom-controls");
+        const progressWrap = container.querySelector(".progress-wrap");
+        const touchBlock = container.querySelector(".player-touch-block");
+        if(controls) controls.style.display="";
+        if(progressWrap) progressWrap.style.display="";
+        if(touchBlock) touchBlock.style.display="";
         const newDiv = document.createElement("div");
         newDiv.id = "player";
         container.insertBefore(newDiv, container.firstChild);
@@ -1855,50 +1906,107 @@ function resetPlayer(){
 ========================= */
 
 function openWatch(index){
-    const video = currentTopic?.videos?.[index];
-    const id = ytId(video?.url);
-    if(!video || !id) return;
 
-    $("watchTitle").textContent = video.title;
+const video = currentTopic?.videos?.[index];
+const type = videoType(video);
 
-    // ১. কন্টেইনার ফ্রেশ করা
-    resetPlayer();
-    
-    // ২. পেজ ভিউ চেঞ্জ করা
-    view("watchView");
+if(!video || !type) return;
 
-    // ৩. YouTube Player API দিয়ে ভিডিও লোড করা
-    let attempts = 0;
-    const createPlayer = () => {
-        if(typeof YT !== "undefined" && YT.Player){
-            try {
-                ytPlayer = new YT.Player("player", {
-                    videoId: id,
-                    host: "https://www.youtube-nocookie.com",
-                    playerVars: {
-                        autoplay: 1,
-                        enablejsapi: 1,
-                        rel: 0,
-                        playsinline: 1,
-                        controls: 0,
-                        fs: 0,
-                        disablekb: 1,
-                        iv_load_policy: 3,
-                        modestbranding: 1,
-                        origin: window.location.origin
-                    },
-                    events: {
-                        onReady: function(){ updatePlayButton(); updateProgress(); },
-                        onStateChange: function(){ updatePlayButton(); updateProgress(); }
-                    }
-                });
-            } catch(e){}
-            return;
-        }
-        if(++attempts < 30) setTimeout(createPlayer, 250);
-    };
+$("watchTitle").textContent = video.title;
 
-    createPlayer();
+resetPlayer();
+
+const controls = document.querySelector(".custom-controls");
+const progressWrap = document.querySelector(".progress-wrap");
+const touchBlock = $("playerTouchBlock");
+
+view("watchView");
+
+if(type==="drive"){
+
+// Google Drive preview player. The file must be shared as "Anyone with the link".
+const id = driveId(video.url);
+
+const player = $("player");
+
+if(controls) controls.style.display="none";
+if(progressWrap) progressWrap.style.display="none";
+if(touchBlock) touchBlock.style.display="none";
+
+player.style.pointerEvents="auto";
+player.innerHTML = `
+<iframe
+src="https://drive.google.com/file/d/${encodeURIComponent(id)}/preview"
+allow="autoplay; fullscreen"
+allowfullscreen
+loading="lazy"
+title="${esc(video.title)}">
+</iframe>
+`;
+
+return;
+}
+
+// YouTube player
+const id = ytId(video.url);
+
+if(controls) controls.style.display="";
+if(progressWrap) progressWrap.style.display="";
+if(touchBlock) touchBlock.style.display="";
+
+let attempts = 0;
+
+const createPlayer = () => {
+
+if(typeof YT !== "undefined" && YT.Player){
+
+try {
+
+ytPlayer = new YT.Player("player", {
+
+videoId:id,
+
+host:"https://www.youtube-nocookie.com",
+
+playerVars:{
+autoplay:1,
+enablejsapi:1,
+rel:0,
+playsinline:1,
+controls:0,
+fs:0,
+disablekb:1,
+iv_load_policy:3,
+modestbranding:1,
+origin:window.location.origin
+},
+
+events:{
+onReady:function(){
+updatePlayButton();
+updateProgress();
+},
+onStateChange:function(){
+updatePlayButton();
+updateProgress();
+}
+}
+
+});
+
+}catch(e){}
+
+return;
+
+}
+
+if(++attempts<30)
+setTimeout(createPlayer,250);
+
+};
+
+createPlayer();
+
 }
 
 /* =========================
@@ -2547,7 +2655,7 @@ No videos.
 
 
 <h4>
-Add YouTube Video
+Add Video
 </h4>
 
 
@@ -2568,12 +2676,26 @@ placeholder="Example: Narration Part 1"
 <div class="field">
 
 <label>
-YouTube URL
+Video source
+</label>
+
+<select id="videoSource">
+<option value="youtube">YouTube</option>
+<option value="drive">Google Drive</option>
+</select>
+
+</div>
+
+
+<div class="field">
+
+<label>
+Video URL
 </label>
 
 <input
 id="videoUrl"
-placeholder="https://youtube.com/watch?v=..."
+placeholder="https://youtube.com/watch?v=... "
 >
 
 </div>
@@ -2667,25 +2789,29 @@ adminSubject.topics.find(
 x=>x.id===id
 );
 
-
 let title=
 $("videoName").value.trim();
-
 
 let url=
 $("videoUrl").value.trim();
 
+let source=
+$("videoSource").value;
 
-if(!title||!ytId(url)){
+let valid=
+source==="youtube" ? !!ytId(url) : !!driveId(url);
+
+if(!title||!valid){
 
 alert(
-"Enter a video title and valid YouTube URL."
+source==="youtube"
+? "Enter a video title and valid YouTube URL."
+: "Enter a video title and valid Google Drive URL."
 );
 
 return;
 
 }
-
 
 topic.videos.push({
 
@@ -2693,10 +2819,11 @@ id:uid(),
 
 title:title,
 
-url:url
+url:url,
+
+source:source
 
 });
-
 
 try{
 
