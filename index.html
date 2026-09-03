@@ -1525,6 +1525,20 @@ id:r.data.id
 
 };
 
+// Save the latest login time on every successful login.
+try{
+    let loginUpdate=await sb.rpc(
+        "record_student_login",
+        {p_student_id:String(r.data.id)}
+    );
+
+    if(loginUpdate.error){
+        console.error("Last login update failed:",loginUpdate.error);
+    }
+}catch(e){
+    console.error("Last login update failed:",e);
+}
+
 
 localStorage.setItem(
 "studyhub_user",
