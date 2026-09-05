@@ -515,7 +515,7 @@ button,input{font:inherit}
 
 <body>
 
-<div class="credit">
+<div id="credit" class="credit hidden">
  This Website Is Made By Nafiz <span>♥️</span>
 </div>
 
@@ -552,7 +552,7 @@ button,input{font:inherit}
 <div id="loginBox">
 
 <div class="field">
-<label>Phone / Username</label>
+<label>Phone Number</label>
 <input id="loginId" autocomplete="username">
 </div>
 
@@ -584,7 +584,7 @@ Create account
 </div>
 
 <div class="field">
-<label>Phone / Username</label>
+<label>Phone Number</label>
 <input id="regId" autocomplete="username">
 </div>
 
@@ -3478,6 +3478,7 @@ localStorage.getItem(
 
 if(user?.id){
 
+$("credit").classList.remove("hidden");
 openStudent(user);
 
 }
