@@ -552,7 +552,7 @@ button,input{font:inherit}
 <div id="loginBox">
 
 <div class="field">
-<label>Phone Number</label>
+<label>Phone / Username</label>
 <input id="loginId" autocomplete="username">
 </div>
 
@@ -584,7 +584,7 @@ Create account
 </div>
 
 <div class="field">
-<label>Phone Number</label>
+<label>Phone / Username</label>
 <input id="regId" autocomplete="username">
 </div>
 
@@ -890,12 +890,9 @@ class="btn secondary">
 class="card hidden"
 style="margin-bottom:18px">
 
-<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-<h2 style="margin:0">
+<h2>
 Students
 </h2>
-<button id="studentsRefreshBtn" class="btn secondary small">↻ Refresh</button>
-</div>
 
 <div id="students"></div>
 
@@ -1527,20 +1524,6 @@ id:r.data.id
 
 };
 
-// Save the latest login time on every successful login.
-try{
-    let loginUpdate=await sb.rpc(
-        "record_student_login",
-        {p_student_id:String(r.data.id)}
-    );
-
-    if(loginUpdate.error){
-        console.error("Last login update failed:",loginUpdate.error);
-    }
-}catch(e){
-    console.error("Last login update failed:",e);
-}
-
 
 localStorage.setItem(
 "studyhub_user",
@@ -1621,21 +1604,7 @@ $("adminExit").onclick=
 openAuth;
 
 
-$("logoutBtn").onclick=async()=>{
-
-const user=currentStudent();
-
-/* Save logout time before clearing the local student session. */
-if(user?.id){
-    try{
-        const r=await sb.rpc("logout_student",{
-            p_student_id:String(user.id)
-        });
-        if(r.error) console.error("Logout time update failed:",r.error);
-    }catch(e){
-        console.error("Logout time update failed:",e);
-    }
-}
+$("logoutBtn").onclick=()=>{
 
 localStorage.removeItem(
 "studyhub_user"
@@ -2710,12 +2679,23 @@ topic.videos.map(
 ${esc(v.title)}
 </span>
 
+<div style="display:flex;gap:8px;align-items:center">
+
+<button
+class="btn secondary small"
+data-video-edit="${i}"
+>
+Edit
+</button>
+
 <button
 class="btn danger small"
 data-video-delete="${i}"
 >
 Delete
 </button>
+
+</div>
 
 </div>
 
@@ -2801,6 +2781,20 @@ $("saveTopic").onclick=
 $("addVideo").onclick=
 ()=>addVideo(id);
 
+
+$("topicEditor")
+.querySelectorAll("[data-video-edit]")
+.forEach(button=>{
+
+button.onclick=()=>
+editVideo(
+id,
+Number(
+button.dataset.videoEdit
+)
+);
+
+});
 
 $("topicEditor")
 .querySelectorAll("[data-video-delete]")
@@ -2930,6 +2924,70 @@ e.message
 
 
 /* =========================
+   EDIT VIDEO
+========================= */
+
+async function editVideo(id,index){
+
+let topic=
+adminSubject.topics.find(
+ x=>x.id===id
+);
+
+if(!topic || !topic.videos?.[index])return;
+
+let video=topic.videos[index];
+
+let title=prompt(
+"Enter video title:",
+video.title||""
+);
+
+if(title===null)return;
+title=title.trim();
+
+if(!title){
+alert("Video title cannot be empty.");
+return;
+}
+
+let url=prompt(
+"Enter video URL:",
+video.url||""
+);
+
+if(url===null)return;
+url=url.trim();
+
+if(!url){
+alert("Video URL cannot be empty.");
+return;
+}
+
+let source=
+ytId(url) ? "youtube" :
+(driveId(url) ? "drive" : null);
+
+if(!source){
+alert("Enter a valid YouTube or Google Drive URL.");
+return;
+}
+
+video.title=title;
+video.url=url;
+video.source=source;
+
+try{
+await saveSite();
+renderEditor();
+manageTopic(id);
+adminMessage("Video updated.",true);
+}catch(e){
+adminMessage(e.message);
+}
+}
+
+/* =========================
    DELETE VIDEO
 ========================= */
 
@@ -2978,13 +3036,17 @@ e.message
    STUDENT LIST
 ========================= */
 
-async function loadStudents(){
+$("studentsBtn").onclick=
+async()=>{
 
-let password=prompt(
+let password=
+prompt(
 "Enter admin password:"
 );
 
+
 if(!password)return;
+
 
 let r=
 await sb.rpc(
@@ -2994,20 +3056,28 @@ p_password:password
 }
 );
 
+
 if(r.error){
+
 return adminMessage(
 r.error.message
 );
+
 }
 
+
 if(!r.data?.success){
+
 return adminMessage(
 "Wrong admin password."
 );
+
 }
+
 
 $("studentsPanel")
 .classList.remove("hidden");
+
 
 let students=
 Array.isArray(
@@ -3015,6 +3085,7 @@ r.data.students
 )?
 r.data.students:
 [];
+
 
 $("students").innerHTML=
 students.map(s=>`
@@ -3045,26 +3116,6 @@ new Date(s.created_at).toLocaleString()
 }
 </div>
 
-<div class="muted">
-Last Login: ${
-s.last_login
-?
-new Date(s.last_login).toLocaleString()
-:
-"Never"
-}
-</div>
-
-<div class="muted">
-Last Logout: ${
-s.last_logout
-?
-new Date(s.last_logout).toLocaleString()
-:
-"Never"
-}
-</div>
-
 </div>
 
 <button
@@ -3078,26 +3129,27 @@ data-login="${esc(s.login_id)}"
 </div>
 
 `).join("")
+
 ||
 
 `<div class="empty">
 No students registered yet.
 </div>`;
 
+
 $("students")
 .querySelectorAll("[data-change]")
 .forEach(button=>{
+
 button.onclick=()=>
 changeStudentPassword(
 button.dataset.change,
 button.dataset.login
 );
+
 });
 
-}
-
-$("studentsBtn").onclick=loadStudents;
-$("studentsRefreshBtn").onclick=loadStudents;
+};
 
 
 /* =========================
@@ -3480,7 +3532,6 @@ localStorage.getItem(
 
 if(user?.id){
 
-$("credit").classList.remove("hidden");
 openStudent(user);
 
 }
